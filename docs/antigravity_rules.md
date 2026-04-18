@@ -22,9 +22,10 @@ Antigravity is responsible for administrative transparency:
 - Maintain a local `task.md` for daily technical items.
 - *Goal*: Anyone on the team can see the project status without asking.
 
-### 🚀 Rule 4: The "Final Sync"
-At the end of every work session:
-- **Git Push**: All logic and documentation is pushed to GitHub.
+### Rule 1: Safety & Backups
+- **Health Check First**: Before starting any analysis or code change, run `python src/utils/check_health.py` to ensure the environment and data links are valid.
+- **Backups**: Every major DTM or DB analytical step must be preceded by a snapshot.
+- **Git Sync**: Always `git pull` before working and `git push` after completing a task.
 - **Summary**: A walkthrough of changes is provided.
 - *Goal*: GitHub always holds the "Single Source of Truth."
 
