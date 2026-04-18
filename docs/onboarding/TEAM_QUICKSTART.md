@@ -1,9 +1,5 @@
 # 🚀 5-Step Team Onboarding Guide
 
-Tin, send this guide to **Szilvi** and **Amal** to get them set up on their private laptops.
-
----
-
 ### Step 0: GitHub Invitation (Action for Tin)
 - [ ] Go to the [GitHub Repo Settings](https://github.com/tinluan/railway-flood-twin/settings/access) and invite Szilvi and Amal as **Collaborators**.
 
