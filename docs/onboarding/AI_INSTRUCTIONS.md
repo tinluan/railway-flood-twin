@@ -21,6 +21,14 @@
 
 ---
 
+### 💡 How to Brainstorm with Antigravity
+If you want to search for new ideas or scientific methods:
+1.  **Ask for Research**: *"Antigravity, search for the latest methods in [topic] and summarize the top 3 pros/cons in our Research Log."*
+2.  **Create a Sandbox**: *"Let's create a new 'Brainstorming' document for our ideas on [topic]."*
+3.  **Evaluate Impact**: *"How would this idea affect our Case Study? Please categorize it by Effort vs. Research Value."*
+
+---
+
 ### Why use this prompt?
 - **Speed**: The AI will find the exact paths for Conda and Git on your specific laptop.
 - **Accuracy**: It will ensure your `.env` file is formatted correctly to link your local code to the shared data.
