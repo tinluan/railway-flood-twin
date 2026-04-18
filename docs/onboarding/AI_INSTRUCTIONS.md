@@ -15,6 +15,7 @@
 > - [ ] Run the `./setup_team.ps1` script to create my local environment.
 > - [ ] Check if I have an `.env` file. If not, help me create one.
 > - [ ] Set my `DATA_ROOT` in the `.env` to point to my Google Shared Drive path.
+> - [ ] Run `python src/utils/check_health.py` to verify my connection and environment.
 > - [ ] Verify that `src/utils/paths.py` is working by confirming it can see the DTM file.
 > 
 > Let's get started!"
