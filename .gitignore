@@ -1,0 +1,27 @@
+# --- Project Data & Environments ---
+data/
+.conda/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# --- IDEs & System ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+
+# --- Large/Temporary Files ---
+*.zip
+*.7z
+*.rar
+*.tar.gz
+*.bak
+*.tmp
+outputs/
+data/processed/
+
+# --- Environment Variables ---
+.env
