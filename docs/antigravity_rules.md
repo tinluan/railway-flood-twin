@@ -4,11 +4,12 @@ To ensure our collaboration is safe, transparent, and reproducible across the te
 
 ---
 
-### 🛡️ Rule 1: The "Pre-Flight" Snapshot
-Before performing any major changes (e.g., database schema updates or large data processing):
-- **Git Commit**: Antigravity will commit the current stable state.
-- **DB Backup**: A SQL snapshot will be saved to `data/backups/`.
-- *Goal*: Never lose a version of the "Logic" or "Data".
+### 🛡️ Rule 1: Safety & Backups (The "Pre-Flight" Check)
+Before performing any major changes (e.g., database schema updates, DTM processing):
+- **Health Check First**: Run `python src/utils/check_health.py` to ensure the environment and data links are valid.
+- **Git Sync**: Always `git pull` before working and `git push` after completing a task.
+- **DB/Data Backup**: A SQL snapshot or data state must be logged to `data/backups/`.
+- *Goal*: Never lose a version of the "Logic" or "Data". GitHub holds the single source of truth.
 
 ### 🗺️ Rule 2: The "Blueprint" Policy
 For any task categorized as a "High Priority" or "Milestone":
@@ -22,16 +23,7 @@ Antigravity is responsible for administrative transparency:
 - Maintain a local `task.md` for daily technical items.
 - *Goal*: Anyone on the team can see the project status without asking.
 
-### Rule 1: Safety & Backups
-- **Health Check First**: Before starting any analysis or code change, run `python src/utils/check_health.py` to ensure the environment and data links are valid.
-- **Backups**: Every major DTM or DB analytical step must be preceded by a snapshot.
-- **Git Sync**: Always `git pull` before working and `git push` after completing a task.
-- **Summary**: A walkthrough of changes is provided.
-- *Goal*: GitHub always holds the "Single Source of Truth."
-
----
-
-### ⚖️ Rule 5: Portable Paths
+### ⚖️ Rule 4: Portable Paths
 - **Rule**: Never use absolute paths (like `C:\Users\Tin\...`) in code.
-- **Requirement**: Use `src/utils/paths.py` and `.env` variables.
-- *Goal*: Ensure logic written by Szilvi in one country works for Amal in another.
+- **Requirement**: Use `src/utils/paths.py` and `.env` variables (`DATA_ROOT`).
+- *Goal*: Ensure logic written by Szilvi in one country works for Amal in another without modification.

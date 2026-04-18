@@ -63,7 +63,18 @@ if (-not (Test-Path ".env")) {
     Write-Host " .env already exists. Update it manually if your Data path is different." -ForegroundColor Yellow
 }
 
-Write-Host "`n[SUCCESS] Onboarding Complete!" -ForegroundColor Cyan
-Write-Host "You can now open this folder in VS Code and start the DTM Analysis."
-Write-Host "Logic/Docs: On your local C: drive (GitHub)"
-Write-Host "Large Data: On the Google Shared Drive (linked via .env)"
+Write-Host "`n[SUCCESS] Environment Installed!" -ForegroundColor Cyan
+
+# 5. Run Health Check
+Write-Host "`n--- Running Initial Project Health Check ---" -ForegroundColor Cyan
+$python_path = "./.conda/Scripts/python.exe"
+if (-not (Test-Path $python_path)) {
+    $python_path = "./.conda/bin/python"
+}
+$env:PYTHONPATH = "."
+& $python_path src/utils/check_health.py
+
+Write-Host "`n[🚀 NEXT STEPS]" -ForegroundColor Cyan
+Write-Host "1. Open this folder in VS Code."
+Write-Host "2. Open docs/onboarding/AI_INSTRUCTIONS.md and paste it into Antigravity."
+Write-Host "3. Start your analysis!"
