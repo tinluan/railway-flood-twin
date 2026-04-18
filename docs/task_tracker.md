@@ -15,8 +15,9 @@ This tracker reflects the **current project status** after:
 | Task | Status | Priority | Owner | Notes |
 |---|---|---|---|---|
 | Organize raw project folders | Done | High | Team | Main raw folders prepared |
-| Define Team Workflow Guide | Done | High | Tin | `team_workflow_guide.md` created |
-| Setup GitHub Code Repository | In Progress | High | Tin | Tin to invite Szilvi and Amal |
+| Define Team Workflow Guide | Done | High | Tin | `team_workflow_guide.md` & `antigravity_rules.md` created |
+| Create Onboarding Infrastructure | Done | High | Tin | `setup_team.ps1` and AI instructions ready |
+| Setup GitHub Code Repository | Done | High | Tin | Repository pushed to `https://github.com/tinluan/railway-flood-twin.git` |
 | Review architecture document | Done | Medium | Team | Kept as conceptual reference |
 | Inspect CRS of `voie` | Done | High |  | Checked in QGIS / Python |
 | Inspect CRS of DTM | Done | High |  | Confirmed DTM CRS |
