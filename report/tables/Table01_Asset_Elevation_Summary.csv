@@ -1,0 +1,121 @@
+layer,asset_label,elev_min_m,elev_max_m,elev_mean_m,pixel_count,notes
+voie,Voie_0,204.01,288.66,226.46,16453,
+reseau tiers-fixed,reseau tiers_0,221.73,223.43,222.85,57,
+routes,route_0,209.01,267.36,235.07,6625,
+routes,route_1,201.11,243.45,216.52,7872,
+Talus Terre,Talus Terre_0,205.61,217.02,212.28,1822,
+Talus Terre,Talus Terre_1,,,,0,Input shapes do not overlap raster.
+Talus Terre,Talus Terre_2,,,,0,Input shapes do not overlap raster.
+Talus Terre,Talus Terre_3,212.62,237.83,229.12,1321,
+Talus Terre,Talus Terre_4,214.82,222.43,218.48,2498,
+Talus Terre,Talus Terre_5,220.93,266.06,243.08,8071,
+Talus Terre,Talus Terre_6,239.03,251.64,245.95,1256,
+Talus Terre,Talus Terre_7,234.94,239.64,236.9,1462,
+Talus Terre,Talus Terre_8,216.12,235.03,225.26,1372,
+Talus Terre,Talus Terre_9,222.43,237.43,231.7,3813,
+Talus Terre,Talus Terre_10,,,,0,Input shapes do not overlap raster.
+Talus Terre,Talus Terre_11,203.31,206.11,205.05,831,
+Talus Terre,Talus Terre_12,203.61,214.82,208.21,6316,
+Talus Terre,Talus Terre_13,199.81,208.91,205.1,1301,
+Talus Terre,Talus Terre_14,206.31,221.42,215.44,5779,
+Talus Terre,Talus Terre_15,261.96,271.16,266.64,149,
+Talus Terre,Talus Terre_16,261.06,266.96,264.56,64,
+Talus Terre,Talus Terre_17,268.86,273.76,271.17,212,
+Talus Terre,Talus Terre_18,257.36,283.56,273.43,1217,
+Talus Terre,Talus Terre_19,251.15,263.46,256.53,639,
+Talus Terre,Talus Terre_20,236.75,254.66,245.52,2425,
+Talus Terre,Talus Terre_21,204.51,237.55,218.23,3334,
+Talus Terre,Talus Terre_22,208.02,216.53,210.64,813,
+Talus Terre,Talus Terre_23,202.61,209.71,205.71,1537,
+Talus Terre,Talus Terre_24,,,,0,Input shapes do not overlap raster.
+Talus Terre,Talus Terre_25,,,,0,Input shapes do not overlap raster.
+Talus Terre,Talus Terre_26,,,,0,Input shapes do not overlap raster.
+Talus Terre,Talus Terre_27,,,,0,Input shapes do not overlap raster.
+Talus Terre,Talus Terre_28,,,,0,Input shapes do not overlap raster.
+Talus Terre,Talus Terre_29,,,,0,Input shapes do not overlap raster.
+Talus Terre,Talus Terre_30,204.91,209.01,206.99,543,
+Talus Terre,Talus Terre_31,200.61,202.71,201.91,70,
+Talus Terre,Talus Terre_32,202.51,203.61,203.06,210,
+Talus Terre,Talus Terre_33,215.12,238.75,225.82,2496,
+Talus Terre,Talus Terre_34,238.45,254.66,245.24,955,
+Talus Terre,Talus Terre_35,238.95,250.65,242.12,522,
+Talus Terre,Talus Terre_36,234.94,237.95,236.41,554,
+Talus Terre,Talus Terre_37,212.01,219.62,217.08,216,
+Fossé terre revêtu,Fossé terre revêtu_0,238.95,244.45,240.34,75,
+Fossé terre revêtu,Fossé terre revêtu_1,239.15,247.75,243.33,73,
+Fossé terre revêtu,Fossé terre revêtu_2,221.03,238.25,230.43,826,
+Fossé terre revêtu,Fossé terre revêtu_3,221.83,237.45,230.11,799,
+Fossé terre revêtu,Fossé terre revêtu_4,236.25,238.05,237.26,42,
+Fossé terre revêtu,Fossé terre revêtu_5,211.12,238.25,230.13,1060,
+Fossé terre revêtu,Fossé terre revêtu_6,216.52,218.63,217.63,34,
+Fossé terre revêtu,Fossé terre revêtu_7,204.01,206.71,205.81,168,
+Fossé terre revêtu,Fossé terre revêtu_8,198.41,206.61,203.43,551,
+Fossé terre revêtu,Fossé terre revêtu_9,,,,0,Input shapes do not overlap raster.
+Fossé terre revêtu,Fossé terre revêtu_10,,,,0,Input shapes do not overlap raster.
+Fossé terre revêtu,Fossé terre revêtu_11,,,,0,Input shapes do not overlap raster.
+Fossé terre revêtu,Fossé terre revêtu_12,,,,0,Input shapes do not overlap raster.
+Fossé terre revêtu,Fossé terre revêtu_13,,,,0,Input shapes do not overlap raster.
+Fossé terre revêtu,Fossé terre revêtu_14,202.51,206.51,204.46,346,
+Fossé terre revêtu,Fossé terre revêtu_15,256.76,269.56,264.34,146,
+Fossé terre revêtu,Fossé terre revêtu_16,257.26,285.46,273.31,168,
+Fossé terre revêtu,Fossé terre revêtu_17,284.66,287.36,285.93,15,
+Fossé terre revêtu,Fossé terre revêtu_18,238.45,250.15,242.23,110,
+Fossé terre revêtu,Fossé terre revêtu_19,243.55,244.85,244.17,14,
+Fossé terre revêtu,Fossé terre revêtu_20,244.95,253.44,248.04,282,
+Fossé terre revêtu,Fossé terre revêtu_21,236.04,244.85,240.09,48,
+Fossé terre,Fossé terre_0,231.13,242.74,238.06,404,
+Fossé terre,Fossé terre_1,236.15,256.76,246.96,361,
+Fossé terre,Fossé terre_2,247.65,255.66,252.21,91,
+Fossé terre,Fossé terre_3,248.45,254.66,250.66,60,
+Fossé terre,Fossé terre_4,249.45,250.95,250.34,62,
+Fossé terre,Fossé terre_5,215.42,222.03,219.45,236,
+Fossé terre,Fossé terre_6,220.62,222.33,221.3,64,
+Fossé terre,Fossé terre_7,221.12,222.63,221.83,50,
+Fossé terre,Fossé terre_8,220.82,228.43,225.52,219,
+Fossé terre,Fossé terre_9,219.52,221.22,220.01,129,
+Fossé terre,Fossé terre_10,206.41,208.41,207.7,156,
+Fossé terre,Fossé terre_11,203.71,204.21,203.85,81,
+Fossé terre,Fossé terre_12,202.21,203.51,202.68,77,
+Fossé terre,Fossé terre_13,198.81,203.11,200.5,164,
+Fossé terre,Fossé terre_14,,,,0,Input shapes do not overlap raster.
+Fossé terre,Fossé terre_15,,,,0,Input shapes do not overlap raster.
+Fossé terre,Fossé terre_16,,,,0,Input shapes do not overlap raster.
+Fossé terre,Fossé terre_17,,,,0,Input shapes do not overlap raster.
+Fossé terre,Fossé terre_18,,,,0,Input shapes do not overlap raster.
+Fossé terre,Fossé terre_19,,,,0,Input shapes do not overlap raster.
+Fossé terre,Fossé terre_20,,,,0,Input shapes do not overlap raster.
+Fossé terre,Fossé terre_21,,,,0,Input shapes do not overlap raster.
+Fossé terre,Fossé terre_22,,,,0,Input shapes do not overlap raster.
+Fossé terre,Fossé terre_23,,,,0,Input shapes do not overlap raster.
+Fossé terre,Fossé terre_24,,,,0,Input shapes do not overlap raster.
+Fossé terre,Fossé terre_25,197.41,203.41,200.09,147,
+Fossé terre,Fossé terre_26,194.51,199.91,196.76,179,
+Fossé terre,Fossé terre_27,191.01,202.71,196.03,598,
+Fossé terre,Fossé terre_28,192.31,201.01,195.66,458,
+Fossé terre,Fossé terre_29,192.51,194.21,193.39,132,
+Fossé terre,Fossé terre_30,201.51,220.82,213.35,690,
+Drainage_longitudinal_à_ciel_ouvert,Drainage_longitudinal_à_ciel_ouvert_0,203.71,210.12,206.47,374,
+Drainage_longitudinal_à_ciel_ouvert,Drainage_longitudinal_à_ciel_ouvert_1,203.71,203.81,203.74,6,
+Drainage_longitudinal_à_ciel_ouvert,Drainage_longitudinal_à_ciel_ouvert_2,210.22,213.42,212.07,135,
+Drainage_longitudinal_à_ciel_ouvert,Drainage_longitudinal_à_ciel_ouvert_3,203.61,204.01,203.79,53,
+Drainage_longitudinal_à_ciel_ouvert,Drainage_longitudinal_à_ciel_ouvert_4,211.22,221.63,215.81,266,
+Drainage_longitudinal_à_ciel_ouvert,Drainage_longitudinal_à_ciel_ouvert_5,208.02,213.22,209.82,93,
+Drainage_longitudinal_à_ciel_ouvert,Drainage_longitudinal_à_ciel_ouvert_6,208.32,208.32,208.32,7,
+Drainage_longitudinal_à_ciel_ouvert,Drainage_longitudinal_à_ciel_ouvert_7,218.73,220.03,219.43,26,
+Drainage_longitudinal_à_ciel_ouvert,Drainage_longitudinal_à_ciel_ouvert_8,215.82,216.42,216.11,9,
+Drainage_longitudinal_à_ciel_ouvert,Drainage_longitudinal_à_ciel_ouvert_9,205.41,208.61,206.4,84,
+Descente d'eau,Descente d'eau_0,210.22,211.02,210.64,20,
+Descente d'eau,Descente d'eau_1,250.55,254.96,253.2,46,
+Descente d'eau,Descente d'eau_2,245.25,266.06,255.89,93,
+Buse,Buse_0,203.21,203.61,203.46,30,
+Buse,Buse_1,208.32,208.42,208.38,34,
+Buse,Buse_2,220.03,220.93,220.51,23,
+Buse,Buse_3,220.02,220.22,220.11,15,
+Buse,Buse_4,201.71,202.81,202.51,26,
+Buse,Buse_5,203.71,203.81,203.78,35,
+Buse,Buse_6,203.61,203.71,203.69,14,
+Pont Rail,Pont Rail_0,,,,0,Input shapes do not overlap raster.
+Pont Rail,Pont Rail_1,,,,0,Input shapes do not overlap raster.
+Pont Rail,Pont Rail_2,238.05,239.05,238.49,104,
+Pont Rail,Pont Rail_3,204.71,210.51,207.88,194,
+Dalot,Dalot_0,213.32,219.62,217.26,165,

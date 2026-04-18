@@ -5,6 +5,7 @@ import pandas as pd
 import geopandas as gpd
 import rasterio
 from rasterio.mask import mask
+from src.utils.paths import paths
 
 # -------------------------------------------------------------------
 # Updated terrain summary script for track_area polygons
@@ -22,19 +23,14 @@ from rasterio.mask import mask
 # - safer CRS handling for the cleaned voie layer
 # -------------------------------------------------------------------
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-STAGING_GIS = PROJECT_ROOT / "data" / "staging" / "gis"
-STAGING_TERRAIN = PROJECT_ROOT / "data" / "staging" / "terrain"
-PROCESSED_TERRAIN = PROJECT_ROOT / "data" / "processed" / "terrain"
-
 # -------------------------------------------------------------------
-# INPUT FILES
+# CONFIGURATION
 # -------------------------------------------------------------------
-# Preferred fixed working DTM file. Change this name if needed.
-FIXED_DTM_FILE = STAGING_TERRAIN / "dtm_2154.tif"
+# Preferred fixed working DTM file. 
+FIXED_DTM_FILE = paths.TERRAIN_STAGING / "dtm_fixed.tif"
 
 # Cleaned track area file
-VOIE_FILE = STAGING_GIS / "voie_fixed.gpkg"
+VOIE_FILE = paths.GIS_STAGING / "voie_fixed.gpkg"
 
 # Expected target EPSG for this project
 TARGET_EPSG = 2154
@@ -54,12 +50,12 @@ def find_working_dtm() -> Path:
     if FIXED_DTM_FILE.exists():
         return FIXED_DTM_FILE
 
-    tif_files = sorted(STAGING_TERRAIN.glob("*.tif"))
+    tif_files = sorted(paths.TERRAIN_STAGING.glob("*.tif"))
     if tif_files:
         return tif_files[0]
 
     raise FileNotFoundError(
-        f"No working DTM GeoTIFF found in: {STAGING_TERRAIN}. "
+        f"No working DTM GeoTIFF found in: {paths.TERRAIN_STAGING}. "
         "Export or place a clean GeoTIFF there first."
     )
 
@@ -152,7 +148,7 @@ def align_voie_crs_to_dtm(gdf: gpd.GeoDataFrame, dtm_crs):
 
 def main():
     try:
-        PROCESSED_TERRAIN.mkdir(parents=True, exist_ok=True)
+        paths.ensure_directories()
 
         dtm_path = find_working_dtm()
         print(f"[INFO] Using working DTM: {dtm_path}")
@@ -231,11 +227,11 @@ def main():
 
         # Save CSV summary
         summary_df = pd.DataFrame(summary_rows)
-        csv_path = PROCESSED_TERRAIN / "track_area_elevation_summary.csv"
+        csv_path = paths.TERRAIN_PROCESSED / "track_area_elevation_summary.csv"
         summary_df.to_csv(csv_path, index=False, encoding="utf-8")
 
         # Save enriched GeoPackage
-        gpkg_path = PROCESSED_TERRAIN / "voie_with_elevation.gpkg"
+        gpkg_path = paths.TERRAIN_PROCESSED / "voie_with_elevation.gpkg"
         enriched.to_file(gpkg_path, driver="GPKG")
 
         print("\n[SUCCESS] Terrain summaries created successfully")
