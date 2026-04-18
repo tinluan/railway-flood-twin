@@ -57,7 +57,15 @@ We use **one central database** for the whole team.
 
 ---
 
-## 6. Communication & Progress
+## 6. Academic Workflow & Reporting
+
+*   **Research Log**: Every time you make a finding, add a quick note to `docs/research_log.md`. This is our "rough draft" for the final paper.
+*   **Figures & Tables**: Always save plot exports to `report/figures/`. Use the `src/utils/viz.py` module to keep the colors and fonts consistent.
+*   **Drafting**: Use `report/drafts/` for writing your sections. This makes it easy for Tin to review them before we move them into the final Microsoft Word report.
+
+---
+
+## 7. Communication & Progress
 
 *   **Task Tracker**: Update `docs/task_tracker.md` whenever you finish a major task.
 *   **Meetings**: A quick 10-minute sync once a week to show what you've built.

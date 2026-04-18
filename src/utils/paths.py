@@ -45,11 +45,26 @@ class ProjectPaths:
     SRC = ROOT / "src"
     OUTPUTS = ROOT / "outputs"
     NOTEBOOKS = ROOT / "notebooks"
+    
+    # Academic / Report folders
+    REPORT = ROOT / "report"
+    REPORT_FIGURES = REPORT / "figures"
+    REPORT_TABLES = REPORT / "tables"
+    REPORT_DRAFTS = REPORT / "drafts"
+    PRESENTATION = ROOT / "presentation"
 
     @classmethod
     def ensure_directories(cls):
-        """Ensure that all critical processed/staging directories exist."""
-        for path in [cls.TERRAIN_STAGING, cls.TERRAIN_PROCESSED, cls.OUTPUTS]:
+        """Ensure that all critical processed/staging/academic directories exist."""
+        for path in [
+            cls.TERRAIN_STAGING, 
+            cls.TERRAIN_PROCESSED, 
+            cls.OUTPUTS,
+            cls.REPORT_FIGURES,
+            cls.REPORT_TABLES,
+            cls.REPORT_DRAFTS,
+            cls.PRESENTATION
+        ]:
             path.mkdir(parents=True, exist_ok=True)
 
 # Global project paths instance
