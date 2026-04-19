@@ -10,6 +10,7 @@
 >
 > 1. We are using a local `.conda` environment inside the project root on my `C:` drive.
 > 2. The large data (3GB) is located on a Google Shared Drive.
+> 3. **Follow the rules in docs/antigravity_rules.md for all operations.**
 > 
 > **Please perform these steps for me:**
 > - [ ] Run the `./setup_team.ps1` script to create my local environment.

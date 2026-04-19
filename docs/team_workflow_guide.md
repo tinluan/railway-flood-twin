@@ -54,6 +54,7 @@ We use **one central database** for the whole team.
 *   **Portability**: Always use `pathlib` for file paths so the code works on everyone's computer.
 *   **Environment**: Use the `environment.yml` or `requirements.txt` to keep Python libraries identical.
 *   **Comments**: If you write a complex function, add a `# Comment` explaining to your teammates what it does.
+*   **AI Pair Programming**: If you use Antigravity, ensure it adheres to the [Antigravity Rules](antigravity_rules.md).
 
 ---
 

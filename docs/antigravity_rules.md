@@ -27,3 +27,18 @@ Antigravity is responsible for administrative transparency:
 - **Rule**: Never use absolute paths (like `C:\Users\Tin\...`) in code.
 - **Requirement**: Use `src/utils/paths.py` and `.env` variables (`DATA_ROOT`).
 - *Goal*: Ensure logic written by Szilvi in one country works for Amal in another without modification.
+
+---
+
+### 🕵️ Rule 5: Final Review (The "Codex" Check)
+- **Notice**: Codex might review your output once you are done to verify technical accuracy and documentation compliance.
+- *Goal*: Ensure all AI-generated content meets the capstone's professional and academic standards.
+
+---
+
+### 🚀 Rule 6: Engineering Excellence
+- **Standard**: Always aim for the "Best Coding" practices (clean architectures, DRY principles, and thorough documentation).
+- **Execution**: Every script must be a "Well-Run Program"—self-contained, robustly error-handled, and performance-optimized.
+- *Goal*: Build a Digital Twin that is not just functional, but technically superior and reliable.
+
+
