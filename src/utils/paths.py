@@ -39,6 +39,8 @@ class ProjectPaths:
     TERRAIN_STAGING = STAGING / "terrain"
     TERRAIN_PROCESSED = PROCESSED / "terrain"
     REFERENCES = DATA / "references"
+    CONTEST = DATA / "contest"
+    THESIS = DATA / "thesis"
     
     # Other root folders
     DOCS = ROOT / "docs"

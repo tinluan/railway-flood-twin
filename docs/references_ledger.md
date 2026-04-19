@@ -48,3 +48,13 @@
 - **Methodology**: Cite `FloodStroem` for the fast dynamic GIS model inspiration.
 - **Risk Assessment**: Refer to `RISK VIP` for the French railway flood risk evaluation approach.
 - **Digital Twin Standards**: Use `PhD_thesis_Agnethe_Nedergaard_Pedersen` for urban drainage twin benchmarks.
+
+---
+
+## 🎖️ Project Heritage & Context
+*Background materials from previous phases and benchmarks.*
+
+| Topic | Filename | Size (MB) | Folder | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| **Contest** | `plm26_dtcontest_final_submission.pdf` | 0.64 | `data/contest/` | Reference |
+| **Thesis** | *(Folder currently empty)* | - | `data/thesis/` | WIP |

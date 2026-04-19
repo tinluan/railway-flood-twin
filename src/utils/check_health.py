@@ -38,6 +38,8 @@ def check_project_health():
     critical_dirs = {
         "Data root": paths.DATA,
         "References": paths.REFERENCES,
+        "Contest Info": paths.CONTEST,
+        "Thesis Docs": paths.THESIS,
         "Raw DTM": paths.DTM_RAW,
         "Staging GIS": paths.GIS_STAGING
     }
