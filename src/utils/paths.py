@@ -39,6 +39,7 @@ class ProjectPaths:
     TERRAIN_STAGING = STAGING / "terrain"
     TERRAIN_PROCESSED = PROCESSED / "terrain"
     REFERENCES = DATA / "references"
+    REFERENCES_MD = DATA / "references" / "markdown"
     CONTEST = DATA / "contest"
     THESIS = DATA / "thesis"
     
