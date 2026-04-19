@@ -34,10 +34,12 @@ All three members must clone the code repository to their own computer's local h
 
 ### Step 2: The "Sync" Routine
 Before you start working and after you finish, follow this sequence:
-1.  **`git pull`**: Get the latest changes from your teammates.
-2.  **Work**: Write your code.
-3.  **`git add .`** & **`git commit -m "type: brief description"`** *(see commit convention below)*.
-4.  **`git push`**: Send your changes to GitHub for Tin, Szilvi, and Amal to see.
+1.  **`git checkout <your-branch>`**: Never work directly on `main`. Create a branch for your task.
+2.  **`git pull origin main`**: Get the latest stable updates.
+3.  **Work**: Write your code.
+4.  **`git commit -m "..."`**: Save your progress.
+5.  **`git push origin <your-branch>`**: Send your branch to GitHub.
+6.  **Open Pull Request**: Go to GitHub and open a PR into `main`. Tin will review it.
 
 ### Step 3: Commit Message Convention
 Use a consistent commit format so anyone can read the history without guessing:
@@ -128,4 +130,18 @@ Before merging any "Trial" code into the `main` branch, the developer must verif
 
 ### The Version Ledger
 Always check [`docs/version_ledger.md`](version_ledger.md) before starting work. If a component is marked as `Trial` 🔬, do not rely on its output for your final report yet. Only use components marked as `Well-Run` ✅.
+
+---
+
+## 10. The Approval Process (Hard Lock)
+
+The `main` branch is protected. No one can push to it directly.
+
+### How to get your code into Main:
+1.  **Submit**: Open a Pull Request from your branch.
+2.  **AI Review**: Antigravity (Tin's assistant) will automatically review the code for path standards and health.
+3.  **Human Approval**: Tin will review the AI's report.
+4.  **Merge**: Tin (or Antigravity with Tin's permission) will click "Merge Pull Request."
+
+*This ensures the project remains 100% stable and "Well-Run" at all times.*
 

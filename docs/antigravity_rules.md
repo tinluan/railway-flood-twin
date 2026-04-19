@@ -7,7 +7,7 @@
 ### 🛡️ Rule 1: Safety & Backups (The "Pre-Flight" Check)
 Before performing any major changes (e.g., database schema updates, DTM processing):
 - **Health Check First**: Run `python src/utils/check_health.py` to ensure the environment and data links are valid.
-- **Git Sync**: Always `git pull` before working and `git push` after completing a task.
+- **Git Sync**: Always `git pull origin main` to a branch before working, and submit your work via a **Pull Request (PR)**.
 - **DB/Data Backup**: A SQL snapshot or data state must be logged to `data/backups/`.
 - *Goal*: Never lose a version of the "Logic" or "Data". GitHub holds the single source of truth.
 
@@ -56,6 +56,26 @@ If an AI (or a team member) edits a file **outside** their primary role area:
 - **Execution**: Every script must be a "Well-Run Program" — self-contained, robustly error-handled, and performance-optimized.
 - **Verification**: If an AI produces a script, it must be run and its output validated before being marked "Well-Run" in the version ledger.
 - *Goal*: Build a Digital Twin that is not just functional, but technically superior and reliable.
+
+---
+
+| Complex multi-step coding, project setup, file creation | **Antigravity** (full agent) |
+| Quick code completion, single-function suggestions | **GitHub Copilot** (inline) |
+| Research, explanations, academic writing | **ChatGPT / Gemini** (chat) |
+
+---
+
+### 🛡️ Rule 8: The "Hard Lock" (PR Policy)
+- **Rule**: No one pushes directly to the `main` branch. 
+- **Requirement**: All code must be submitted via a **Pull Request**. The Lead (Tin) must approve the PR before it is merged.
+- *Goal*: Prevent accidental breakage and ensure human-in-the-loop review.
+
+---
+
+### 🤖 Rule 9: The "Assistant Gatekeeper" Role
+- **Requirement**: Antigravity serves as the first-line reviewer for team PRs. 
+- **Function**: The AI will scan PRs for absolute paths, health check compliance, and documentation before the Lead performs the final approval.
+- *Goal*: Automate code review so the Lead can focus on high-level decisions.
 
 ---
 
