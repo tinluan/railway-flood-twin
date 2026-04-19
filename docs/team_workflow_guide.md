@@ -6,7 +6,7 @@ This guide defines how **Tin**, **Szilvi**, and **Amal** will collaborate on thi
 
 ## 1. Team Roles
 
-To prevent "too many cooks in the kitchen," we suggest the following primary responsibilities:
+To prevent "too many cooks in the kitchen," we assign clear primary responsibilities:
 
 | Name | Role | Primary Responsibilities |
 | :--- | :--- | :--- |
@@ -36,37 +36,70 @@ All three members must clone the code repository to their own computer's local h
 Before you start working and after you finish, follow this sequence:
 1.  **`git pull`**: Get the latest changes from your teammates.
 2.  **Work**: Write your code.
-3.  **`git add .`** & **`git commit -m "Briefly explain what you did"`**.
+3.  **`git add .`** & **`git commit -m "type: brief description"`** *(see commit convention below)*.
 4.  **`git push`**: Send your changes to GitHub for Tin, Szilvi, and Amal to see.
+
+### Step 3: Commit Message Convention
+Use a consistent commit format so anyone can read the history without guessing:
+
+| Prefix | When to use |
+| :--- | :--- |
+| `feat:` | Adding a new script or significant new functionality |
+| `fix:` | Fixing a bug or broken output |
+| `docs:` | Adding or updating documentation / markdown |
+| `data:` | Adding, cleaning, or updating GIS/raster data references |
+| `refactor:` | Restructuring code without changing its behaviour |
+| `test:` | Adding or running validation/test scripts |
+
+**Examples:**
+```
+feat: add terrain elevation summary for track_area polygons
+fix: correct CRS mismatch in voie_fixed.gpkg loading
+docs: update version_ledger with milestone 3 results
+```
 
 ---
 
 ## 4. Shared Database (Supabase)
 
 We use **one central database** for the whole team.
-*   **Connection**: Everyone connects using the same `SUPABASE_URL` and `SUPABASE_KEY`.
-*   **Coordination**: If you want to change a table structure (add a column, etc.), **Discord/Message the team first**. Changing a table might break your teammates' scripts!
+*   **Connection**: Everyone connects using the same `DATABASE_URL` in their `.env`.
+*   **Coordination**: If you want to change a table structure (add a column, etc.), **message the team first** (Discord/WhatsApp). Changing a table might break your teammates' scripts!
 
 ---
 
 ## 5. Coding Standards
 
-*   **Portability**: Always use `pathlib` for file paths so the code works on everyone's computer.
-*   **Environment**: Use the `environment.yml` or `requirements.txt` to keep Python libraries identical.
-*   **Comments**: If you write a complex function, add a `# Comment` explaining to your teammates what it does.
-*   **AI Pair Programming**: If you use Antigravity, ensure it adheres to the [Antigravity Rules](antigravity_rules.md).
+*   **Portability**: Always use `pathlib` via `src/utils/paths.py` — never hardcode absolute paths.
+*   **Environment**: Use `requirements.txt` to keep Python libraries identical across machines.
+*   **Comments**: If you write a complex function, add a docstring and inline comments for your teammates.
+*   **AI Pair Programming**: If you use any AI tool, it must follow the rules in [`docs/antigravity_rules.md`](antigravity_rules.md).
 
 ---
 
-## 6. Academic Workflow & Reporting
+## 6. Cross-Job Change Management
 
-*   **Research Log**: Every time you make a finding, add a quick note to `docs/research_log.md`. This is our "rough draft" for the final paper.
-*   **Figures & Tables**: Always save plot exports to `report/figures/`. Use the `src/utils/viz.py` module to keep the colors and fonts consistent.
-*   **Drafting**: Use `report/drafts/` for writing your sections. This makes it easy for Tin to review them before we move them into the final Microsoft Word report.
+If you need to edit a file **outside your primary role** (e.g., Tin modifies Szilvi's GIS script):
+
+1.  **Notify the owner**: Send a message before or immediately after the change.
+2.  **Log it**: Add an entry to [`docs/version_ledger.md`](version_ledger.md) under the "Cross-Job Change Register."
+3.  **Commit with context**: Use a commit message like `fix(gis): correct CRS in voie script — see version_ledger`.
+4.  **Do not silently refactor**: Never rename, reorganize, or delete someone else's logic without explicit approval.
+
+> 💡 **Calling back old versions**: Use `git log --oneline` to find the hash of the last "Well-Run" state, then `git checkout <hash> -- <file>` to restore it.
 
 ---
 
-## 7. Communication & Progress
+## 7. Academic Workflow & Reporting
+
+*   **Research Log**: Every time you make a finding, add a note to `docs/research_log.md`. This is our "rough draft" for the final paper.
+*   **Figures & Tables**: Always save plot exports to `report/figures/`. Use `src/utils/viz.py` to keep colors and fonts consistent.
+*   **Drafting**: Use `report/drafts/` for writing your sections so Tin can review them before they go into the final report.
+
+---
+
+## 8. Communication & Progress
 
 *   **Task Tracker**: Update `docs/task_tracker.md` whenever you finish a major task.
-*   **Meetings**: A quick 10-minute sync once a week to show what you've built.
+*   **Version Ledger**: Log all "big" changes — especially Well-Run validations and Cross-Job modifications — in `docs/version_ledger.md`.
+*   **Meetings**: A quick 10-minute sync once a week to show what you have built.
