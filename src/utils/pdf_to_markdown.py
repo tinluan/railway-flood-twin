@@ -9,36 +9,48 @@ from pathlib import Path
 
 
 def pdf_to_markdown(pdf_path: Path, output_path: Path) -> None:
-    """Extract text from a PDF and write it as a clean Markdown file."""
+    """Extract text from a PDF and write it as a clean Markdown file.
+
+    Args:
+        pdf_path: Path to the source PDF file.
+        output_path: Path to the output Markdown file.
+    """
     doc = fitz.open(str(pdf_path))
-    
-    lines = []
-    lines.append(f"# {pdf_path.stem}")
-    lines.append(f"> **Source**: `{pdf_path.name}`")
-    lines.append(f"> **Pages**: {doc.page_count}")
-    lines.append("")
-    lines.append("---")
-    lines.append("")
 
-    for i, page in enumerate(doc):
-        text = page.get_text("text")
-        if text.strip():
-            lines.append(f"## Page {i + 1}")
-            lines.append("")
-            # Clean up excessive whitespace while preserving paragraphs
-            paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
-            for para in paragraphs:
-                # Collapse single newlines within paragraphs
-                clean = " ".join(para.split("\n"))
-                lines.append(clean)
-                lines.append("")
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text("\n".join(lines), encoding="utf-8")
     try:
-        print(f"[OK] Converted: {pdf_path.name} -> {output_path.name}")
-    except UnicodeEncodeError:
-        print(f"[OK] Converted: {pdf_path.name.encode('ascii', 'ignore').decode()} -> {output_path.name.encode('ascii', 'ignore').decode()}")
+        lines = []
+        lines.append(f"# {pdf_path.stem}")
+        lines.append(f"> **Source**: `{pdf_path.name}`")
+        lines.append(f"> **Pages**: {doc.page_count}")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+
+        for i, page in enumerate(doc):
+            text = page.get_text("text")
+            if text.strip():
+                lines.append(f"## Page {i + 1}")
+                lines.append("")
+                # Clean up excessive whitespace while preserving paragraphs
+                paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
+                for para in paragraphs:
+                    # Collapse single newlines within paragraphs
+                    clean = " ".join(para.split("\n"))
+                    lines.append(clean)
+                    lines.append("")
+
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text("\n".join(lines), encoding="utf-8")
+        try:
+            print(f"[OK] Converted: {pdf_path.name} -> {output_path.name}")
+        except UnicodeEncodeError:
+            print(
+                f"[OK] Converted: "
+                f"{pdf_path.name.encode('ascii', 'ignore').decode()} -> "
+                f"{output_path.name.encode('ascii', 'ignore').decode()}"
+            )
+    finally:
+        doc.close()
 
 
 if __name__ == "__main__":
