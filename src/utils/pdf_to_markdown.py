@@ -35,7 +35,10 @@ def pdf_to_markdown(pdf_path: Path, output_path: Path) -> None:
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text("\n".join(lines), encoding="utf-8")
-    print(f"[OK] Converted: {pdf_path.name} -> {output_path.name}")
+    try:
+        print(f"[OK] Converted: {pdf_path.name} -> {output_path.name}")
+    except UnicodeEncodeError:
+        print(f"[OK] Converted: {pdf_path.name.encode('ascii', 'ignore').decode()} -> {output_path.name.encode('ascii', 'ignore').decode()}")
 
 
 if __name__ == "__main__":
