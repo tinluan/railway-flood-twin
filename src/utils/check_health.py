@@ -35,12 +35,22 @@ def check_project_health():
 
     # 3. Data Link Check
     print("\n[3/4] Shared Data Connection:")
-    if not paths.DATA.exists():
-        print(f"  [FAIL] UNREACHABLE: Data root at {paths.DATA}")
+    critical_dirs = {
+        "Data root": paths.DATA,
+        "References": paths.REFERENCES,
+        "Raw DTM": paths.DTM_RAW,
+        "Staging GIS": paths.GIS_STAGING
+    }
+    
+    for label, path in critical_dirs.items():
+        if not path.exists():
+            print(f"  [FAIL] UNREACHABLE: {label} at {path}")
+            all_ok = False
+        else:
+            print(f"  [OK] {label} is reachable")
+            
+    if not all_ok:
         print("     Check your Google Drive connection or DATA_ROOT in .env")
-        all_ok = False
-    else:
-        print(f"  [OK] Data root is reachable: {paths.DATA}")
 
     # 4. Backup Status
     print("\n[4/4] Database Backup Status:")

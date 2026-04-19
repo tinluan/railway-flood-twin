@@ -38,6 +38,7 @@ class ProjectPaths:
     GIS_STAGING = STAGING / "gis"
     TERRAIN_STAGING = STAGING / "terrain"
     TERRAIN_PROCESSED = PROCESSED / "terrain"
+    REFERENCES = DATA / "references"
     
     # Other root folders
     DOCS = ROOT / "docs"
