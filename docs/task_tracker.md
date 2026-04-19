@@ -34,9 +34,9 @@ This tracker reflects the **current project status** after:
 | Load `Descente d'eau_fixed` into `rail.gis_asset` | Done | High |  | Loaded as `asset_type = drainage_asset` |
 | Validate initial GIS asset load | Done | High |  | 30 total assets, SRID 2154, invalid geometry = 0, null geometry = 0 |
 | Decide handling of `rail.track_segment` | Pending | Medium |  | Current `voie` is polygon-based; line/centerline representation still needed later |
-| Run fast DTM terrain summary for `track_area` polygons | Pending | High |  | Use `derive_track_area_elevation_fast.py` |
-| Inspect terrain summary outputs | Pending | High |  | Review CSV and GeoPackage outputs |
-| Validate terrain summary values | Pending | High |  | Check counts, overlap, min/max/mean reasonableness |
+| Run fast DTM terrain summary for `track_area` polygons | Done | High |  | Use `derive_track_area_elevation_updated.py` |
+| Inspect terrain summary outputs | Done | High |  | Verified CSV and GeoPackage outputs |
+| Validate terrain summary values | Done | High |  | Confirmed counts (16k pixels) and elevations |
 | Decide whether to store terrain summaries in database | Pending | Medium |  | CSV/GPKG first, DB later if needed |
 | Add more 2D GIS layers to `rail.gis_asset` | Pending | Medium |  | Extend beyond first 4 cleaned files |
 | Add rainfall documents/data later | Pending | Low |  | Future phase |
@@ -67,28 +67,21 @@ Completed:
 - initial validation queries completed successfully
 
 ### Milestone 3 — Terrain / DTM workflow
-**Status:** In progress
+**Status:** Done ✅
 
-Next target:
-- run the fast terrain summary workflow for `track_area`
-- inspect and validate terrain summary outputs
+Completed:
+- ran the updated terrain summary workflow for `track_area`
+- inspected outputs: 16,453 pixels analyzed; mean elevation 226.46m
+- validated results against DTM bounds
 
 ---
 
 ## Recommended next action
 
 ### Immediate next task
-Run:
-
-```bash
-python src/transform/derive_track_area_elevation_fast.py
-```
-
-Then review the outputs in:
-
-```text
-data/processed/terrain/
-```
+1.  **Refine track_area analysis**: Now that we have the macro elevation summary, we can proceed to more detailed "profile" views if needed.
+2.  **Asset Loading (Phase 2)**: Add more 2D GIS layers to `rail.gis_asset` beyond the initial 4.
+3.  **Risk Engine**: Begin mapping rainfall scenarios to specific asset locations.
 
 ---
 

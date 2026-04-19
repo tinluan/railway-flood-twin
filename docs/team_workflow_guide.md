@@ -103,3 +103,29 @@ If you need to edit a file **outside your primary role** (e.g., Tin modifies Szi
 *   **Task Tracker**: Update `docs/task_tracker.md` whenever you finish a major task.
 *   **Version Ledger**: Log all "big" changes — especially Well-Run validations and Cross-Job modifications — in `docs/version_ledger.md`.
 *   **Meetings**: A quick 10-minute sync once a week to show what you have built.
+
+---
+
+## 9. Release Strategy & Safety
+
+To prevent "Trials" from breaking the "Final" version:
+
+### The "Stable Main" Rule
+- **Main Branch**: Only push code to `main` if it is **Well-Run** and passes the `check_health.py`.
+- **Trial Branches**: If you are experimenting, create a local branch (`git checkout -b <name>-trial`). Only merge it to `main` when it is stable.
+
+### Creating a "Final" Version (Tags)
+When a Milestone is complete, Tin will create a **Git Tag**. This "freezes" the code so you can always return to it.
+- **To Create**: `git tag -a v1.0-m2 -m "Final version for Milestone 2"`
+- **To Return to a Release**: `git checkout v1.0-m2`
+
+### The 3-Step Quality Gate (Checklist for Merging to Main)
+Before merging any "Trial" code into the `main` branch, the developer must verify:
+
+1.  **Output Validation**: The script has run successfully and produced the expected data (e.g., a CSV with plausible numbers, a report figure, or a updated database table).
+2.  **Environment Health**: Run `python src/utils/check_health.py` and ensure it returns **SUCCESS**.
+3.  **Engineering Standards**: Code uses `paths.py` (no absolute paths), includes comments, and has been updated in the [`version_ledger.md`](version_ledger.md).
+
+### The Version Ledger
+Always check [`docs/version_ledger.md`](version_ledger.md) before starting work. If a component is marked as `Trial` 🔬, do not rely on its output for your final report yet. Only use components marked as `Well-Run` ✅.
+
