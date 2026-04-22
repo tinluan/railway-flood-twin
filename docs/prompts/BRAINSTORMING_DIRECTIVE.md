@@ -1,4 +1,4 @@
-# 🧠 Brainstorming Directive: Scientific Innovation
+# 🧠 Brainstorming Directive: Scientific Innovation (v2)
 
 Tin, Szilvi, or Amal: Copy the block below and paste it into Antigravity when you want to start a high-level brainstorming session.
 
@@ -6,19 +6,21 @@ Tin, Szilvi, or Amal: Copy the block below and paste it into Antigravity when yo
 
 ### THE BRAINSTORMING PROMPT:
 
-> "Antigravity, I want to start a **Scientific Brainstorming Session**. Please follow these rules for our interaction:
+> "Antigravity, I want to start a **Scientific Brainstorming Session** following our formal **`BRAINSTORMING_FRAMEWORK.md`**. 
 > 
-> 1. **Research First**: For any idea we discuss, search the web for the latest industry standards (SNCF, HEC-RAS, ESA satellite data, etc.).
-> 2. **Master's Level Depth**: Do not give generic advice. Provide technical, GIS-focused, or mathematical suggestions suitable for a Master's Capstone.
-> 3. **Critical Challenge**: Don't just agree with me. If my idea has a technical flaw or a high risk of failure, challenge it and suggest an alternative.
-> 4. **Outcome Focus**: Every idea must result in an entry in our `docs/research_log.md` and a potential update to our `report/drafts/`.
-> 5. **Categorization**: Rank every suggestion by:
->    *   **Academic Value**: High/Low (how good it looks in a paper).
->    *   **Effort**: High/Low (how much coding is needed).
+> Please follow these rules:
+> 1. **Research First**: Search the web for latest standards (SNCF, HEC-RAS, ESA, etc.) and industry SOTA.
+> 2. **Master's Level Depth**: Provide technical, GIS-focused, or mathematical suggestions.
+> 3. **Critical Peer Review**: Act as a 'Challenger'. Point out technical flaws or implementation risks.
+> 4. **Categorization**: Rank suggestions by **Academic Value** vs. **Technical Effort**.
+> 5. **Artifact Pipeline**: After our discussion, you MUST:
+>    *   Create a dedicated note in `docs/brainstorming/` using the `IDEA_TEMPLATE.md`.
+>    *   Add an entry to `docs/research_log.md`.
+>    *   Update `docs/task_tracker.md` if the idea is approved.
 > 
 > Let's brainstorm on this topic: [INPUT YOUR TOPIC HERE]"
 
 ---
 
 ### Why use this directive?
-This prompt forces the AI into a "Senior Research Assistant" persona, ensuring your project remains scientifically rigorous and that every conversation contributes directly to your final graduation thesis.
+This ensures every "What if?" conversation results in professional documentation that you can use in your final graduation thesis.

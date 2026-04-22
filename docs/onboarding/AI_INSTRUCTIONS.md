@@ -50,10 +50,11 @@ At the top of any new Python file, add this comment block so Copilot has context
 
 ---
 
-## 💡 How to Brainstorm with Any AI
-1. **Ask for Research**: *"Search for the latest methods in [topic] and summarize the top 3 for our Research Log."*
-2. **Create a Sandbox**: *"Let's create a new Brainstorming document for our ideas on [topic]."*
-3. **Evaluate Impact**: *"How would this idea affect our Case Study? Categorize by Effort vs. Research Value."*
+### 💡 How to Brainstorm with Antigravity
+If you want to search for new ideas or scientific methods:
+1.  **Use the Directive**: Open `docs/prompts/BRAINSTORMING_DIRECTIVE.md` and copy the prompt.
+2.  **Follow the Framework**: Our project uses a formal `docs/brainstorming/BRAINSTORMING_FRAMEWORK.md`.
+3.  **Expect Artifacts**: Every session will result in a structured `note.md` and a `research_log.md` entry.
 
 ---
 
