@@ -1,30 +1,24 @@
-# Copilot Instructions: Railway Flood-Risk Digital Twin
+# 🤖 GitHub Copilot Project Context: Railway Flood-Twin
 
-## Context
-This is a Master's capstone project building a railway flood-risk digital twin.
-Team: Tin (Lead/DBA), Szilvi (GIS), Amal (Backend).
+You are an AI assistant helping a team build a Digital Twin for Railway Flood Risk. 
 
-## Critical Rules
-- NEVER use hardcoded absolute paths (e.g., `C:\Users\...`).
-- ALWAYS use `from src.utils.paths import paths` for file resolution.
-- ALL database connections must use `os.getenv("DATABASE_URL")` from `.env`.
-- Use `pathlib.Path` everywhere, never `os.path.join` strings.
+## 🏗️ Core Architecture Rules
+1. **NO HARDCODED PATHS**: All data/GIS paths MUST come from `src/utils/paths.py`. Use the `paths` constant.
+   - *Example*: Use `paths.DATA / 'file.csv'` instead of `'C:/Users/...'`.
+2. **PORTABILITY FIRST**: Ensure all code works for all team members (Tin, Szilvi, Amal) regardless of their local drive letter (D: vs C:).
+3. **MODULAR RISK**: The project is split into:
+   - `data/`: Raw/Staging/Processed datasets (on Shared Drive).
+   - `src/engine/`: Python risk computation logic.
+   - `src/dashboard/`: Streamlit visualization.
+4. **DOCUMENTATION**: Reference scientific papers in `docs/references/` (Markdown format) for formulas.
 
-## Python Style
-- Follow PEP 8.
-- Add docstrings to all functions using Google style.
-- Use `sys.exit(1)` for fatal errors, not bare `raise`.
-- Wrap scripts in `if __name__ == "__main__": main()`.
+## 🔒 Governance & Hard Lock
+- **NO DIRECT PUSH TO MAIN**: Always work on a feature branch.
+- **GATEKEEPER**: All changes must be logged in `docs/version_ledger.md` and `docs/task_tracker.md`.
+- **HEALTH CHECK**: Always encourage the user to run `python src/utils/check_health.py` after a setup change.
 
-## Project Structure
-- `src/utils/paths.py` — all path constants
-- `src/utils/check_health.py` — environment validation
-- `src/utils/viz.py` — academic figure style
-- `data/staging/gis/` — cleaned GIS layers (.gpkg)
-- `data/raw/dtm/` — raw DTM rasters (.asc)
-- `data/staging/terrain/` — working DTM GeoTIFFs (.tif)
-- `report/figures/` — output figures for academic report
-
-## CRS Standard
-- All GIS data must be in EPSG:2154 (Lambert-93).
-- Always check and align CRS before raster masking operations.
+## 🧪 Coding Style
+- Follow PEP8.
+- Use type hints for all functions.
+- Add descriptive docstrings.
+- Use `logging` instead of `print()` for production scripts.
