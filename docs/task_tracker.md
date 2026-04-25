@@ -14,35 +14,35 @@ This tracker reflects the **current project status** after:
 
 | Task | Status | Priority | Owner | Notes |
 |---|---|---|---|---|
-| Organize raw project folders | Done | High | Team | Main raw folders prepared |
-| Define Team Workflow Guide | Done | High | Tin | `team_workflow_guide.md` & `antigravity_rules.md` created |
-| Create Onboarding Infrastructure | Done | High | Tin | `setup_team.ps1` and AI instructions ready |
-| Setup GitHub Code Repository | Done | High | Tin | Repository pushed to `https://github.com/tinluan/railway-flood-twin.git` |
-| Review architecture document | Done | Medium | Team | Kept as conceptual reference |
-| Inspect CRS of `voie` | Done | High |  | Checked in QGIS / Python |
-| Inspect CRS of DTM | Done | High |  | Confirmed DTM CRS |
-| Export cleaned GIS files to `data/staging/gis/` | Done | High |  | Cleaned `.gpkg` files created |
-| Generate project docs from staging data | Done | High |  | `generate_docs_from_staging.py` ran successfully |
-| Create minimal schemas in Supabase | Done | High |  | `core`, `rail` created; optional `env`, `bim` deferred |
-| Create `core.dataset` table | Done | High |  | Dataset metadata table working |
-| Create `rail.corridor` table | Done | High |  | Corridor row inserted |
-| Create `rail.gis_asset` table | Done | High |  | Main current GIS asset storage table |
-| Register visible datasets in `core.dataset` | Done | High |  | `voie_fixed`, `Buse_fixed`, `Pont Rail_fixed`, `Descente d'eau_fixed`, DTM registered |
-| Load `voie_fixed` into `rail.gis_asset` | Done | High |  | Loaded as `asset_type = track_area` |
-| Load `Buse_fixed` into `rail.gis_asset` | Done | High |  | Loaded as `asset_type = culvert` |
-| Load `Pont Rail_fixed` into `rail.gis_asset` | Done | High |  | Loaded as `asset_type = bridge` |
-| Load `Descente d'eau_fixed` into `rail.gis_asset` | Done | High |  | Loaded as `asset_type = drainage_asset` |
-| Validate initial GIS asset load | Done | High |  | 30 total assets, SRID 2154, invalid geometry = 0, null geometry = 0 |
-| Decide handling of `rail.track_segment` | Pending | Medium |  | Current `voie` is polygon-based; line/centerline representation still needed later |
-| Run fast DTM terrain summary for `track_area` polygons | Done | High |  | Use `derive_track_area_elevation_updated.py` |
-| Inspect terrain summary outputs | Done | High |  | Verified CSV and GeoPackage outputs |
-| Validate terrain summary values | Done | High |  | Confirmed counts (16k pixels) and elevations |
-| Decide whether to store terrain summaries in database | Pending | Medium |  | CSV/GPKG first, DB later if needed |
-| Add more 2D GIS layers to `rail.gis_asset` | Pending | Medium |  | Extend beyond first 4 cleaned files |
-| Add rainfall documents/data later | Pending | Low |  | Future phase |
-| Add BIM documents/data later | Pending | Low |  | Future phase |
-| Add line-based `rail.track_segment` later | Pending | Low |  | Depends on centerline source or derived line |
-| Add IoT / advanced flood modelling later | Pending | Low |  | Future phase |
+| Organize raw project folders | 🟢 <span style="color:green">Done</span> | 🔴 <span style="color:red">High</span> | Team | Main raw folders prepared |
+| Define Team Workflow Guide | 🟢 <span style="color:green">Done</span> | 🔴 <span style="color:red">High</span> | Tin | `team_workflow_guide.md` & `antigravity_rules.md` created |
+| Create Onboarding Infrastructure | 🟢 <span style="color:green">Done</span> | 🔴 <span style="color:red">High</span> | Tin | `setup_team.ps1` and AI instructions ready |
+| Setup GitHub Code Repository | 🟢 <span style="color:green">Done</span> | 🔴 <span style="color:red">High</span> | Tin | Repository pushed to `https://github.com/tinluan/railway-flood-twin.git` |
+| Review architecture document | 🟢 <span style="color:green">Done</span> | 🟠 <span style="color:orange">Medium</span> | Team | Kept as conceptual reference |
+| Inspect CRS of `voie` | 🟢 <span style="color:green">Done</span> | 🔴 <span style="color:red">High</span> |  | Checked in QGIS / Python |
+| Inspect CRS of DTM | 🟢 <span style="color:green">Done</span> | 🔴 <span style="color:red">High</span> |  | Confirmed DTM CRS |
+| Export cleaned GIS files to `data/staging/gis/` | 🟢 <span style="color:green">Done</span> | 🔴 <span style="color:red">High</span> |  | Cleaned `.gpkg` files created |
+| Generate project docs from staging data | 🟢 <span style="color:green">Done</span> | 🔴 <span style="color:red">High</span> |  | `generate_docs_from_staging.py` ran successfully |
+| Create minimal schemas in Supabase | 🟢 <span style="color:green">Done</span> | 🔴 <span style="color:red">High</span> |  | `core`, `rail` created; optional `env`, `bim` deferred |
+| Create `core.dataset` table | 🟢 <span style="color:green">Done</span> | 🔴 <span style="color:red">High</span> |  | Dataset metadata table working |
+| Create `rail.corridor` table | 🟢 <span style="color:green">Done</span> | 🔴 <span style="color:red">High</span> |  | Corridor row inserted |
+| Create `rail.gis_asset` table | 🟢 <span style="color:green">Done</span> | 🔴 <span style="color:red">High</span> |  | Main current GIS asset storage table |
+| Register visible datasets in `core.dataset` | 🟢 <span style="color:green">Done</span> | 🔴 <span style="color:red">High</span> |  | `voie_fixed`, `Buse_fixed`, `Pont Rail_fixed`, `Descente d'eau_fixed`, DTM registered |
+| Load `voie_fixed` into `rail.gis_asset` | 🟢 <span style="color:green">Done</span> | 🔴 <span style="color:red">High</span> |  | Loaded as `asset_type = track_area` |
+| Load `Buse_fixed` into `rail.gis_asset` | 🟢 <span style="color:green">Done</span> | 🔴 <span style="color:red">High</span> |  | Loaded as `asset_type = culvert` |
+| Load `Pont Rail_fixed` into `rail.gis_asset` | 🟢 <span style="color:green">Done</span> | 🔴 <span style="color:red">High</span> |  | Loaded as `asset_type = bridge` |
+| Load `Descente d'eau_fixed` into `rail.gis_asset` | 🟢 <span style="color:green">Done</span> | 🔴 <span style="color:red">High</span> |  | Loaded as `asset_type = drainage_asset` |
+| Validate initial GIS asset load | 🟢 <span style="color:green">Done</span> | 🔴 <span style="color:red">High</span> |  | 30 total assets, SRID 2154, invalid geometry = 0, null geometry = 0 |
+| Decide handling of `rail.track_segment` | 🟡 <span style="color:orange">Pending</span> | 🟠 <span style="color:orange">Medium</span> |  | Current `voie` is polygon-based; line/centerline representation still needed later |
+| Run fast DTM terrain summary for `track_area` polygons | 🟢 <span style="color:green">Done</span> | 🔴 <span style="color:red">High</span> |  | Use `derive_track_area_elevation_updated.py` |
+| Inspect terrain summary outputs | 🟢 <span style="color:green">Done</span> | 🔴 <span style="color:red">High</span> |  | Verified CSV and GeoPackage outputs |
+| Validate terrain summary values | 🟢 <span style="color:green">Done</span> | 🔴 <span style="color:red">High</span> |  | Confirmed counts (16k pixels) and elevations |
+| Decide whether to store terrain summaries in database | 🟡 <span style="color:orange">Pending</span> | 🟠 <span style="color:orange">Medium</span> |  | CSV/GPKG first, DB later if needed |
+| Add more 2D GIS layers to `rail.gis_asset` | 🟡 <span style="color:orange">Pending</span> | 🟠 <span style="color:orange">Medium</span> |  | Extend beyond first 4 cleaned files |
+| Add rainfall documents/data later | 🟡 <span style="color:orange">Pending</span> | 🔵 <span style="color:blue">Low</span> |  | Future phase |
+| Add BIM documents/data later | 🟡 <span style="color:orange">Pending</span> | 🔵 <span style="color:blue">Low</span> |  | Future phase |
+| Add line-based `rail.track_segment` later | 🟡 <span style="color:orange">Pending</span> | 🔵 <span style="color:blue">Low</span> |  | Depends on centerline source or derived line |
+| Add IoT / advanced flood modelling later | 🟡 <span style="color:orange">Pending</span> | 🔵 <span style="color:blue">Low</span> |  | Future phase |
 
 ---
 
@@ -76,12 +76,28 @@ Completed:
 
 ---
 
+## 🏛️ Milestone 4 — Subsystem Design & Brainstorming
+**Status:** In Progress 🧪
+
+Completed:
+- [x] Architecture upgraded to **4-Layer SNCF Professional Standard**
+- [x] **Rainfall Ingestion Blueprint** ([Link](file:///c:/Users/ktstr/Documents/railway-flood-twin/docs/subsystems/rainfall_ingestion.md))
+- [x] **Risk Engine Blueprint** (SWI + HEC-RAS + Fragility) ([Link](file:///c:/Users/ktstr/Documents/railway-flood-twin/docs/subsystems/risk_engine.md))
+- [x] **Spatial Handoff / Mirror DB Blueprint** ([Link](file:///c:/Users/ktstr/Documents/railway-flood-twin/docs/subsystems/handoff_schema.md))
+- [x] **SNCF Architecture Doc** ([Link](file:///c:/Users/ktstr/Documents/railway-flood-twin/docs/Architecture%20for%20a%20Railway%20Flood%E2%80%91Risk%20Digital%20Twin%20(SNCF%20Professional%20Standard).md))
+- [x] **Contest Submission Mirror** updated to 4-layer architecture
+
+Pending:
+- [x] **Dashboard Blueprint** (Traffic Light HMI) ([Link](file:///c:/Users/ktstr/Documents/railway-flood-twin/docs/subsystems/dashboard_design.md))
+
+---
+
 ## Recommended next action
 
 ### Immediate next task
-1.  **Refine track_area analysis**: Now that we have the macro elevation summary, we can proceed to more detailed "profile" views if needed.
-2.  **Asset Loading (Phase 2)**: Add more 2D GIS layers to `rail.gis_asset` beyond the initial 4.
-3.  **Risk Engine**: Begin mapping rainfall scenarios to specific asset locations.
+1.  **Dashboard Blueprint**: Draft the Traffic Light HMI design (`docs/subsystems/dashboard_design.md`).
+2.  **Begin Code Generation**: Once all 4 blueprints are complete, execute the "Master Coding Session."
+3.  **SWI Calibration**: Run the T optimization loop against historical accident data.
 
 ---
 

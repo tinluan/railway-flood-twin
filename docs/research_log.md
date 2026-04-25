@@ -26,3 +26,11 @@ This log tracks the "daily" breakthroughs, anomalies, and key decisions. This co
 - **Action**: Created `report/` and `presentation/` folders. Implemented `paths.py` for cross-border collaboration.
 - **Result**: Success.
 - **Insight**: Established a "Case Study" methodology. By isolating data roots via `.env`, we ensure reproducibility across different team members' hardware.
+### 🗓️ 2026-04-25 - Methodology Refinement: Hydrological vs. Hydraulic
+- **Goal**: Define the exact roles of SWI and HEC-RAS in the twin architecture.
+- **Insight**: 
+    1. **Hydrological Model (The "Volume")**: Uses the **SWI (Leaky Bucket)** to answer: *"How much rain turns into runoff?"* (Result: Discharge).
+    2. **Hydraulic Model (The "Danger")**: Uses **HEC-RAS** to answer: *"How deep will that runoff be on the track?"* (Result: WSE/Velocity).
+- **Report Use**: This distinction is critical for the **"Technical Methodology"** section of the final report to justify the 4-layer architecture.
+
+---

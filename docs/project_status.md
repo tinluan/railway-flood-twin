@@ -3,10 +3,25 @@
 
 ---
 
+## 🗺️ Project Integration Map
+*How our files work together*
+
+```text
+[ STRATEGY ] --> [   DESIGN   ] --> [  EXECUTION  ]
+  Roadmap    -->   Blueprints  -->    Python Code
+ (The Why)        (The How)          (The What)
+
+1. Roadmap: docs/brainstorming/road_to_demonstrator.md
+2. Blueprints: docs/subsystems/ (Rain, Risk, UI)
+3. Code: src/engine/ and src/dashboard/
+```
+
+---
+
 ## ⚡ Live Status
 | Component | Status | Last Updated |
 | :--- | :--- | :--- |
-| **Branch** | `main` | 2026-04-25 |
+| **Branch** | `brainstorm/plm26-contest-logic` | 2026-04-25 |
 | **Project Health** | 🟢 Healthy | 2026-04-19 |
 | **Main Release** | `v0.2.0-beta` | 2026-04-25 |
 
@@ -34,6 +49,7 @@
 ---
 
 ## 🛠️ Next Technical Steps
-1. Define "Scour Risk" formula from literature.
-2. Draft architecture for `src/engine/risk_model.py`.
-3. Initialize Streamlit dashboard skeleton.
+1. ~~Draft the **Risk Engine Blueprint** (`risk_engine.md`).~~ ✅ Done
+2. ~~Draft the **Spatial Handoff Blueprint** (`handoff_schema.md`).~~ ✅ Done
+3. Draft **Dashboard Design** (`dashboard_design.md`). ⬅️ **NEXT**
+4. Execute the **Master Coding Session** (generate all `src/engine/` Python files).
