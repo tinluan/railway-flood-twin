@@ -6,9 +6,9 @@
 ## ⚡ Live Status
 | Component | Status | Last Updated |
 | :--- | :--- | :--- |
-| **Branch** | `feat/brainstorming-roadmap` | 2026-04-25 |
+| **Branch** | `main` | 2026-04-25 |
 | **Project Health** | 🟢 Healthy | 2026-04-19 |
-| **Main Release** | `v0.1.0-alpha` | 2026-04-19 |
+| **Main Release** | `v0.2.0-beta` | 2026-04-25 |
 
 ---
 
@@ -22,7 +22,7 @@
 
 | PR Title | Author | Status |
 | :--- | :--- | :--- |
-| `feat/brainstorming-roadmap` | Antigravity | **Waiting for Merge** |
+| *(None)* | - | ✅ Clear |
 
 ---
 
