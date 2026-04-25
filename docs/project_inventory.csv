@@ -1,0 +1,15 @@
+Path,Category,Owner,Description
+docs/antigravity_rules.md,Management,Tin + AI,The core rules for all AI and human collaboration.
+docs/team_workflow_guide.md,Management,Tin,Guidelines for Git/GitHub and team roles.
+docs/project_status.md,Management,AI,Live dashboard of the current project state.
+docs/version_ledger.md,Management,Tin + AI,Log of all significant changes and releases.
+docs/task_tracker.md,Management,AI,High-level milestone and task tracking.
+data/Contest/plm26_dtcontest_final_submission_discussion.md,Research,Tin + AI,Active scratchpad for the contest implementation.
+docs/brainstorming/road_to_demonstrator.md,Research,AI,Technical roadmap for the contest demonstrator.
+docs/references_ledger.md,Research,AI,Inventory of the 33 scientific papers.
+src/utils/paths.py,Infrastructure,AI,The single source of truth for all file paths.
+src/utils/check_health.py,Infrastructure,AI,Diagnostic script for team setup.
+src/utils/pdf_to_markdown.py,Infrastructure,AI,Utility to mirror PDFs into Markdown.
+src/engine/risk_logic.py,Engine,Amal + AI,The core formulas for flood risk.
+src/dashboard/app_main.py,Dashboard,Tin + AI,Main Streamlit dashboard interface.
+.github/copilot-instructions.md,Infrastructure,AI,System instructions for VS Code Copilot.
