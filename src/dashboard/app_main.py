@@ -145,29 +145,70 @@ else:
     delta_swi = 0
 
 # --- Compute risk per asset at this timestep ---
-# Risk model: higher runoff + higher rain intensity = higher risk
-# Bridges are more vulnerable than culverts at equal water levels
 def compute_risk_at_t(row, rain_mm, swi_mm, runoff_mm):
-    """Simplified per-asset risk score based on physics state."""
-    base = min(rain_mm * 3.5, 50)  # rain contribution (0-50)
-    swi_factor = min(swi_mm * 200, 30)  # saturation contribution (0-30)
-    runoff_factor = min(runoff_mm * 50, 20)  # active runoff contribution (0-20)
-    # Bridges are more fragile
-    if "Bridge" in row["asset_type"]:
-        multiplier = 1.3
-    elif "Culvert" in row["asset_type"]:
-        multiplier = 1.0
+    """Per-asset risk using real GPS position as terrain vulnerability proxy.
+    
+    Logic: Along the Ligne 400 corridor (lat 44.649 to 44.663),
+    southern points (lower lat) are in the valley = flood FIRST.
+    Northern points (higher lat) are on higher ground = flood LATER.
+    This creates a realistic 'flood wave' progression.
+    """
+    # --- GPS-based vulnerability ---
+    # Corridor bounds from real QGIS data
+    lat_min, lat_max = 44.6498, 44.6628  # southern valley → northern ridge
+    lat = row.get("lat", (lat_min + lat_max) / 2)
+    
+    # Normalize: 0.0 = highest (safe), 1.0 = lowest (most vulnerable)
+    if lat_max > lat_min:
+        vulnerability = 1.0 - (lat - lat_min) / (lat_max - lat_min)
     else:
-        multiplier = 0.8
-    return min(int((base + swi_factor + runoff_factor) * multiplier), 100)
+        vulnerability = 0.5
+    vulnerability = max(0.0, min(1.0, vulnerability))
+    
+    # --- Physics components ---
+    base = min(rain_mm * 2.5, 40)           # rain (0-40)
+    swi_factor = min(swi_mm * 150, 25)      # saturation (0-25)
+    runoff_factor = min(runoff_mm * 80, 15)  # runoff (0-15)
+    
+    # Raw risk from global weather (same for all points)
+    weather_risk = base + swi_factor + runoff_factor  # max ~80
+    
+    # Local terrain modifier: valley points get up to +35% risk
+    terrain_boost = weather_risk * (0.15 + 0.35 * vulnerability)
+    
+    # Structural fragility: Bridges more critical than culverts
+    if "Bridge" in row["asset_type"] or "Pont" in row["asset_type"]:
+        struct_mult = 1.15
+    else:
+        struct_mult = 1.0
+    
+    final_risk = (weather_risk + terrain_boost) * struct_mult
+    return min(int(final_risk), 100)
+
+# --- CAP International Standard Alert Levels ---
+# GREEN 0-25% | YELLOW 25-50% | ORANGE 50-75% | RED 75-100%
+CAP_COLORS_RGBA = {
+    "GREEN":  [76, 175, 80, 200],    # #4CAF50
+    "YELLOW": [255, 235, 59, 200],   # #FFEB3B
+    "ORANGE": [255, 152, 0, 200],    # #FF9800
+    "RED":    [244, 67, 54, 200],    # #F44336
+}
+CAP_COLORS_HEX = {
+    "GREEN": "#4CAF50", "YELLOW": "#FFEB3B", "ORANGE": "#FF9800", "RED": "#F44336",
+}
+
+def risk_to_cap_level(r):
+    if r >= 75: return "RED"
+    if r >= 50: return "ORANGE"
+    if r >= 25: return "YELLOW"
+    return "GREEN"
 
 if not all_assets.empty:
     all_assets["risk_level"] = all_assets.apply(
         lambda r: compute_risk_at_t(r, current_rain, current_swi, current_runoff_mm), axis=1
     )
-    all_assets["color"] = all_assets["risk_level"].apply(
-        lambda r: [220, 20, 20, 200] if r > 60 else ([255, 165, 0, 200] if r > 30 else [30, 180, 30, 200])
-    )
+    all_assets["cap_level"] = all_assets["risk_level"].apply(risk_to_cap_level)
+    all_assets["color"] = all_assets["cap_level"].apply(lambda lv: CAP_COLORS_RGBA[lv])
 
 # Filter by selected asset types
 filtered = all_assets[all_assets["asset_type"].isin(asset_types)] if (asset_types and not all_assets.empty) else all_assets
@@ -265,8 +306,16 @@ with col1:
             ["name", "asset_type", "lat", "lon", "risk_level"]
         ].reset_index(drop=True)
         top5.columns = ["Asset ID", "Type", "Latitude", "Longitude", "Risk (%)"]
+
+        # Color each Risk cell with fixed CAP-standard colors (matching map dots)
+        def color_risk_cell(val):
+            lv = risk_to_cap_level(val)
+            bg = CAP_COLORS_HEX[lv]
+            fg = "#000" if lv in ("GREEN", "YELLOW") else "#FFF"
+            return f"background-color: {bg}; color: {fg}; font-weight: bold"
+
         st.dataframe(
-            top5.style.background_gradient(subset=["Risk (%)"], cmap="RdYlGn_r"),
+            top5.style.map(color_risk_cell, subset=["Risk (%)"]),
             width="stretch"
         )
     else:
@@ -339,12 +388,13 @@ with col1:
 with col2:
     st.subheader("Operational Alerts")
 
-    if max_risk > 60:
-        st.error(f"RED ALERT: {max_risk}% Probability of Failure")
-        st.warning("ACTION: EMERGENCY HALT (ETCS/RBC Stop)")
-    elif max_risk > 30:
-        st.warning(f"YELLOW ALERT: {max_risk}% Probability of Failure")
-        st.info("ACTION: Speed Restriction 60 km/h")
+    cap = risk_to_cap_level(max_risk)
+    if cap == "RED":
+        st.error(f"RED ALERT: {max_risk}% -- EMERGENCY HALT (ETCS/RBC Stop)")
+    elif cap == "ORANGE":
+        st.warning(f"ORANGE WARNING: {max_risk}% -- Speed Restriction 30 km/h")
+    elif cap == "YELLOW":
+        st.info(f"YELLOW WATCH: {max_risk}% -- Enhanced Monitoring Active")
     else:
         st.success(f"GREEN: Network Safe ({max_risk}% risk)")
 
@@ -373,4 +423,4 @@ with col2:
     st.text_area("System Logs", "\n".join(events[-8:]), height=180)
 
 st.divider()
-st.caption("Developed for Tin Luan - SNCF Digital Twin Research | Forecast Simulation Engine v2.0")
+st.caption("Developed by TRAN Trong-Tin, Amal, Szilvi | SNCF Digital Twin Research | Forecast Simulation Engine v2.0")
