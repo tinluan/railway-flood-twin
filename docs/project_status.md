@@ -22,7 +22,7 @@
 
 | PR Title | Author | Status |
 | :--- | :--- | :--- |
-| `chore/repo-refresh` | Antigravity | **Waiting for Merge** |
+| `feat/brainstorming-roadmap` | Antigravity | **Waiting for Merge** |
 
 ---
 
