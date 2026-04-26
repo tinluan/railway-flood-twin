@@ -4,6 +4,7 @@ import numpy as np
 import plotly.graph_objects as go
 import os
 import sys
+import json
 
 # Add project root to path for imports
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -38,20 +39,25 @@ def load_assets():
     GIS_PATH = RAW_DATA.parent / "staging" / "gis"
     records = []
     configs = [
-        ("Pont Rail (Bridge)",    GIS_PATH / "Pont Rail_fixed.gpkg"),
-        ("Buse (Culvert)",        GIS_PATH / "Buse_fixed.gpkg"),
-        ("Dalot (Box Culvert)",   GIS_PATH / "Dalot_fixed.gpkg"),
+        ("Pont Rail (Bridge)",          GIS_PATH / "Pont Rail_fixed.gpkg", "Pont Rail"),
+        ("Buse (Culvert)",              GIS_PATH / "Buse_fixed.gpkg", "Buse"),
+        ("Dalot (Box Culvert)",         GIS_PATH / "Dalot_fixed.gpkg", "Dalot"),
+        ("Fosse terre (Earth Ditch)",   GIS_PATH / "Fossé terre_fixed.gpkg", "Fosse terre"),
+        ("Fosse terre revetu (Lined Ditch)", GIS_PATH / "Fossé terre revêtu_fixed.gpkg", "Fosse terre revetu"),
+        ("Talus Terre (Embankment)",    GIS_PATH / "Talus Terre_fixed.gpkg", "Talus Terre"),
+        ("Voie (Track)",                GIS_PATH / "voie_fixed.gpkg", "Voie"),
     ]
-    for asset_type, path in configs:
+    for asset_type_label, path, base_id in configs:
         if not path.exists():
             continue
         gdf = gpd.read_file(path).to_crs("EPSG:4326")
         for idx, row in gdf.iterrows():
             pt = row.geometry.centroid
-            name_val = row.get("name", f"{asset_type}_{idx}")
+            # Always use standardized base_id to avoid French accent mismatches
+            std_name = f"{base_id}_{idx}"
             records.append({
-                "asset_type": asset_type,
-                "name": name_val if name_val else f"{asset_type}_{idx}",
+                "asset_type": asset_type_label,
+                "name": std_name,
                 "lat": pt.y,
                 "lon": pt.x,
             })
@@ -66,8 +72,11 @@ def load_infra_layers():
     GIS_PATH = RAW_DATA.parent / "staging" / "gis"
     results = []
     infra_configs = [
-        ("Voie (Track)",       GIS_PATH / "voie_fixed.gpkg",         [220, 30,  30,  220], 4),
-        ("Talus (Embankment)", GIS_PATH / "Talus Terre_fixed.gpkg",  [139, 90,  43,  160], 2),
+        ("Voie (Track)",              GIS_PATH / "voie_fixed.gpkg",                        [220, 30,  30,  220], 4),
+        ("Talus (Embankment)",        GIS_PATH / "Talus Terre_fixed.gpkg",                 [139, 90,  43,  160], 2),
+        ("Fosse terre revetu",        GIS_PATH / "Fossé terre revêtu_fixed.gpkg",          [30, 100, 200, 200], 2),
+        ("Fosse terre",               GIS_PATH / "Fossé terre_fixed.gpkg",                 [30,  80, 170, 180], 2),
+        ("Drainage longitudinal",     GIS_PATH / "Drainage_longitudinal_à_ciel_ouvert_fixed.gpkg", [60, 140, 220, 180], 1),
     ]
     for name, path, color, width in infra_configs:
         if not path.exists():
@@ -86,10 +95,38 @@ def load_infra_layers():
             print(f"Warning: Could not load {name}: {e}")
     return results
 
-df_rain = load_rainfall()
-df_swi = load_swi()
+@st.cache_data
+def load_cross_sections():
+    cs_file = PROCESSED_DATA / "cross_sections.json"
+    if cs_file.exists():
+        with open(cs_file, "r") as f:
+            return json.load(f)
+    return {}
+
+@st.cache_data
+def load_z_config():
+    z_file = PROCESSED_DATA / "z_config.json"
+    if z_file.exists():
+        with open(z_file, "r") as f:
+            return json.load(f)
+    return {}
+
+df_rain   = load_rainfall()
+df_swi    = load_swi()
+cs_data   = load_cross_sections()
 all_assets = load_assets()
 infra_data = load_infra_layers()
+z_config  = load_z_config()
+
+@st.cache_data
+def load_wse_results():
+    wse_file = PROCESSED_DATA / "hecras_wse_results.json"
+    if wse_file.exists():
+        with open(wse_file, "r") as f:
+            return json.load(f)
+    return {}
+
+wse_results = load_wse_results()
 
 # ============================================================
 # TITLE & SIDEBAR
@@ -102,10 +139,16 @@ mode = st.sidebar.selectbox("Mode", ["Forecast Simulation", "Live Monitoring", "
 corridor = st.sidebar.selectbox("Corridor", ["Ligne_400 (Himalayas)"])
 
 # --- Asset Filter ---
+ALL_ASSET_TYPES = [
+    "Buse (Culvert)", "Dalot (Box Culvert)",
+    "Fosse terre (Earth Ditch)", "Fosse terre revetu (Lined Ditch)",
+    "Talus Terre (Embankment)", "Voie (Track)",
+    "Pont Rail (Bridge)",
+]
 asset_types = st.sidebar.multiselect(
     "Show Asset Types",
-    ["Pont Rail (Bridge)", "Buse (Culvert)", "Dalot (Box Culvert)"],
-    default=["Pont Rail (Bridge)", "Buse (Culvert)", "Dalot (Box Culvert)"]
+    ALL_ASSET_TYPES,
+    default=ALL_ASSET_TYPES
 )
 
 # ============================================================
@@ -145,45 +188,53 @@ else:
     delta_swi = 0
 
 # --- Compute risk per asset at this timestep ---
-def compute_risk_at_t(row, rain_mm, swi_mm, runoff_mm):
-    """Per-asset risk using real GPS position as terrain vulnerability proxy.
+def compute_risk_at_t(row, rain_mm, swi_mm, runoff_mm, config):
+    """Per-asset risk using precise 3D vertical thresholds.
     
-    Logic: Along the Ligne 400 corridor (lat 44.649 to 44.663),
-    southern points (lower lat) are in the valley = flood FIRST.
-    Northern points (higher lat) are on higher ground = flood LATER.
-    This creates a realistic 'flood wave' progression.
+    Logic: 
+    1. Simulates local Water Surface Elevation (WSE) based on rain intensity and runoff.
+    2. Compares WSE against asset-specific Yellow/Orange/Red Z-thresholds.
     """
-    # --- GPS-based vulnerability ---
-    # Corridor bounds from real QGIS data
-    lat_min, lat_max = 44.6498, 44.6628  # southern valley → northern ridge
-    lat = row.get("lat", (lat_min + lat_max) / 2)
+    asset_id = row["name"]
+    asset_config = config.get(asset_id)
     
-    # Normalize: 0.0 = highest (safe), 1.0 = lowest (most vulnerable)
-    if lat_max > lat_min:
-        vulnerability = 1.0 - (lat - lat_min) / (lat_max - lat_min)
+    # 1. Physics: Simulate Water Rise (WSE)
+    # Heavy rain and high runoff increase the water level (simulated HEC-RAS proxy for now)
+    water_rise_m = (rain_mm * 0.05) + (runoff_mm * 0.1) # e.g. 40mm/h rain + 15mm runoff = 3.5m rise
+    
+    if asset_config:
+        # We assume the ditch/culvert bottom is roughly 1.5m below its top (yellow_z)
+        base_z = asset_config["yellow_z_m"] - 1.5 
+        current_wse = base_z + water_rise_m
+        
+        # 2. Risk Hierarchy Evaluation
+        if current_wse >= asset_config["red_z_m"]:
+            # RED: Track submerged
+            return 100
+        elif current_wse >= asset_config["orange_z_m"]:
+            # ORANGE: Embankment soaked / Ditch overflowing
+            return 75
+        elif current_wse >= asset_config["yellow_z_m"]:
+            # YELLOW: Drainage capacity reached
+            return 50
+        else:
+            # GREEN: Safe
+            return int((water_rise_m / 1.5) * 25) # Scale 0-25 based on how full the ditch is
+            
     else:
-        vulnerability = 0.5
-    vulnerability = max(0.0, min(1.0, vulnerability))
-    
-    # --- Physics components ---
-    base = min(rain_mm * 2.5, 40)           # rain (0-40)
-    swi_factor = min(swi_mm * 150, 25)      # saturation (0-25)
-    runoff_factor = min(runoff_mm * 80, 15)  # runoff (0-15)
-    
-    # Raw risk from global weather (same for all points)
-    weather_risk = base + swi_factor + runoff_factor  # max ~80
-    
-    # Local terrain modifier: valley points get up to +35% risk
-    terrain_boost = weather_risk * (0.15 + 0.35 * vulnerability)
-    
-    # Structural fragility: Bridges more critical than culverts
-    if "Bridge" in row["asset_type"] or "Pont" in row["asset_type"]:
-        struct_mult = 1.15
-    else:
-        struct_mult = 1.0
-    
-    final_risk = (weather_risk + terrain_boost) * struct_mult
-    return min(int(final_risk), 100)
+        # Fallback for assets not in config (e.g. roads)
+        lat_min, lat_max = 44.6498, 44.6628
+        lat = row.get("lat", (lat_min + lat_max) / 2)
+        vulnerability = 1.0 - (lat - lat_min) / (lat_max - lat_min) if lat_max > lat_min else 0.5
+        vulnerability = max(0.0, min(1.0, vulnerability))
+        
+        base = min(rain_mm * 2.5, 40)
+        swi_factor = min(swi_mm * 150, 25)
+        runoff_factor = min(runoff_mm * 80, 15)
+        weather_risk = base + swi_factor + runoff_factor
+        terrain_boost = weather_risk * (0.15 + 0.35 * vulnerability)
+        final_risk = weather_risk + terrain_boost
+        return min(int(final_risk), 100)
 
 # --- CAP International Standard Alert Levels ---
 # GREEN 0-25% | YELLOW 25-50% | ORANGE 50-75% | RED 75-100%
@@ -205,7 +256,7 @@ def risk_to_cap_level(r):
 
 if not all_assets.empty:
     all_assets["risk_level"] = all_assets.apply(
-        lambda r: compute_risk_at_t(r, current_rain, current_swi, current_runoff_mm), axis=1
+        lambda r: compute_risk_at_t(r, current_rain, current_swi, current_runoff_mm, z_config), axis=1
     )
     all_assets["cap_level"] = all_assets["risk_level"].apply(risk_to_cap_level)
     all_assets["color"] = all_assets["cap_level"].apply(lambda lv: CAP_COLORS_RGBA[lv])
@@ -322,65 +373,205 @@ with col1:
         st.warning("No assets selected. Use the sidebar filter to choose asset types.")
 
     # ============================================================
-    # WSE CHART with TIME CURSOR
+    # GLOBAL ASSET SELECTOR
     # ============================================================
-    st.subheader("Hydraulic Forecast (48h Timeline)")
+    st.subheader("Asset-Specific Hydraulic Forecast")
+    
+    asset_options = filtered["name"].tolist() if not filtered.empty else []
+    critical_idx = 0
+    if not filtered.empty and "risk_level" in filtered.columns:
+        critical_name = filtered.sort_values("risk_level", ascending=False).iloc[0]["name"]
+        if critical_name in asset_options:
+            critical_idx = asset_options.index(critical_name)
+            
+    selected_asset = st.selectbox("📌 Select Critical Asset to Analyze:", asset_options, index=critical_idx) if asset_options else None
+    
+    # Get dynamic thresholds
+    z_yellow = 220.0
+    z_orange = 220.5
+    z_red = 221.5
+    if selected_asset and z_config and selected_asset in z_config:
+        z_yellow = z_config[selected_asset]["yellow_z_m"]
+        z_orange = z_config[selected_asset]["orange_z_m"]
+        z_red = z_config[selected_asset]["red_z_m"]
+
+    # ============================================================
+    # WSE CHART with TIME CURSOR — driven by per-asset HEC-RAS results
+    # ============================================================
     fig = go.Figure()
 
-    if len(df_rain) > 0:
-        # Convert timestamps to strings for Plotly compatibility
+    if len(df_rain) > 0 and selected_asset:
         timestamps = [str(t) for t in df_rain['timestamp']]
-        z_ballast_val = 221.5
-        z_terrain_val = 220.2
-        z_ballast = [z_ballast_val] * len(df_rain)
-        z_terrain = [z_terrain_val] * len(df_rain)
-        wse = [z_terrain_val + (r * 0.05) for r in df_rain['intensity_mm_h']]
 
+        # --- Load per-asset WSE from hecras_wse_results.json ---
+        if selected_asset in wse_results:
+            asset_wse_data = wse_results[selected_asset]
+            wse = asset_wse_data['wse_m']
+            base_z = asset_wse_data['base_z_m']
+        else:
+            # Fallback: estimate from rain+runoff (for assets not in wse_results)
+            base_z = z_yellow - 1.5
+            wse = [base_z + ((r * 0.05) + (df_swi.iloc[i]["active_runoff_mm"] * 0.1))
+                   for i, r in enumerate(df_rain['intensity_mm_h'])]
+
+        # Clamp wse length to match timestamps
+        wse = wse[:len(timestamps)]
         wse_max = max(wse)
-        y_min = z_terrain_val - 0.5
-        y_max = max(wse_max, z_ballast_val) + 0.5
+        y_min = min(base_z - 1.0, min(wse) - 0.5)
+        y_max = max(wse_max, z_red) + 1.0
 
-        fig.add_trace(go.Scatter(x=timestamps, y=z_ballast, name="Z_Ballast (Danger)",
+        # Threshold Lines
+        fig.add_trace(go.Scatter(x=timestamps, y=[z_red]*len(timestamps),
+                                 name="RED: Voie Min",
                                  line=dict(color='red', dash='dash', width=2)))
-        fig.add_trace(go.Scatter(x=timestamps, y=z_terrain, name="Z_Terrain",
+        fig.add_trace(go.Scatter(x=timestamps, y=[z_orange]*len(timestamps),
+                                 name="ORANGE: Talus Mean",
+                                 line=dict(color='orange', dash='dash', width=2)))
+        fig.add_trace(go.Scatter(x=timestamps, y=[z_yellow]*len(timestamps),
+                                 name="YELLOW: Buse Max",
+                                 line=dict(color='gold', dash='dot', width=2)))
+
+        # Terrain Bottom (flat, asset-specific base)
+        fig.add_trace(go.Scatter(x=timestamps, y=[base_z]*len(timestamps),
+                                 name="Terrain Bottom",
                                  fill='tozeroy', fillcolor='rgba(139,90,43,0.15)',
                                  line=dict(color='saddlebrown', width=1)))
-        fig.add_trace(go.Scatter(x=timestamps, y=wse, name="WSE (Predicted)",
+
+        # Water Surface Elevation (WSE)
+        fig.add_trace(go.Scatter(x=timestamps, y=wse,
+                                 name="WSE (Predicted)",
                                  line=dict(color='royalblue', width=3),
                                  fill='tonexty', fillcolor='rgba(65,105,225,0.25)'))
 
-        # --- VERTICAL CURSOR LINE at current slider position ---
-        cursor_ts = timestamps[t_idx]
+        # Vertical time cursor
+        cursor_ts  = timestamps[t_idx]
         cursor_wse = wse[t_idx]
-        # Use add_shape instead of add_vline to avoid Plotly Timestamp arithmetic bug
         fig.add_shape(
             type="line", x0=cursor_ts, x1=cursor_ts, y0=y_min, y1=y_max,
-            line=dict(color="orange", width=2, dash="solid"),
-        )
-        fig.add_annotation(
-            x=cursor_ts, y=y_max, text=f"T+{t_idx}h",
-            showarrow=False, font=dict(color="orange", size=12),
-            yshift=10,
+            line=dict(color="darkgrey", width=2, dash="solid"),
         )
         fig.add_trace(go.Scatter(
             x=[cursor_ts], y=[cursor_wse],
             mode="markers",
-            marker=dict(size=12, color="orange", symbol="diamond", line=dict(width=2, color="white")),
-            name=f"Cursor (WSE={cursor_wse:.2f}m)",
+            marker=dict(size=12, color="blue", symbol="diamond",
+                        line=dict(width=2, color="white")),
+            name=f"Current WSE ({cursor_wse:.2f}m)",
             showlegend=True,
         ))
 
         fig.update_layout(
-            yaxis=dict(title="Elevation (m)", range=[y_min, y_max]),
-            xaxis=dict(title="Forecast Timeline"),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            yaxis=dict(title="Elevation NGF (m)", range=[y_min, y_max]),
+            xaxis=dict(title="Forecast Timeline (48h)"),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02,
+                        xanchor="right", x=1),
             margin=dict(l=60, r=20, t=40, b=60),
             hovermode="x unified",
         )
     else:
-        fig.update_layout(title="No data -- run ingestion first")
+        fig.update_layout(title="No data or asset selected")
+        cursor_wse = None
 
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, config={"displayModeBar": True, "scrollZoom": False}, use_container_width=True)
+
+    # ============================================================
+    # CONTEXTUAL CROSS-SECTION VIEWER
+    # ============================================================
+    st.subheader("Contextual Cross-Section (Terrain + Ditch)")
+
+    def make_synthetic_profile(asset_name, z_yellow_val, z_orange_val):
+        """Generate a standard trapezoidal railway cross-section from engineering defaults."""
+        import numpy as np
+        ditch_bottom_z = z_yellow_val - 1.8  # 1.8m ditch depth below yellow threshold
+        bank_z         = z_orange_val          # Bank top = orange threshold
+        # Trapezoidal cross-section: 24m wide, 3:1 side slopes
+        x = np.linspace(-12, 12, 49)
+        z = []
+        for xi in x:
+            if abs(xi) > 9:        # outer embankment slopes up
+                z.append(round(bank_z + (abs(xi) - 9) * 0.5, 3))
+            elif abs(xi) > 4:      # ditch side slopes
+                z.append(round(ditch_bottom_z + (abs(xi) - 4) * ((bank_z - ditch_bottom_z) / 5), 3))
+            else:                   # ditch flat bottom
+                z.append(round(ditch_bottom_z, 3))
+        return list(x.round(2)), z
+
+    if selected_asset:
+        asset_key = selected_asset
+        has_dtm_profile = asset_key in cs_data
+
+        if has_dtm_profile:
+            profile = cs_data[asset_key]
+            x_dist  = profile["distances"]
+            z_elev  = profile["elevations"]
+            source_label = "DTM (LiDAR)"
+        else:
+            # Synthetic geometric fallback from z_config thresholds
+            x_dist, z_elev = make_synthetic_profile(asset_key, z_yellow, z_orange)
+            source_label = "Synthetic Geometry (no DTM coverage)"
+
+        fig_cs = go.Figure()
+
+        # Terrain / Structural Profile
+        fig_cs.add_trace(go.Scatter(
+            x=x_dist, y=z_elev,
+            name=f"Profile ({source_label})",
+            fill='tozeroy', fillcolor='rgba(139,90,43,0.3)',
+            line=dict(color='saddlebrown', width=3)
+        ))
+
+        # Water level at cursor time step
+        if cursor_wse is not None:
+            wse_arr = [cursor_wse] * len(x_dist)
+            # Only fill where water is above terrain
+            fig_cs.add_trace(go.Scatter(
+                x=x_dist, y=wse_arr,
+                name=f"Water Level (WSE={cursor_wse:.2f}m)",
+                line=dict(color='royalblue', width=2, dash='dash'),
+                fill='tonexty', fillcolor='rgba(65,105,225,0.35)'
+            ))
+
+        # Danger threshold lines across profile width
+        fig_cs.add_trace(go.Scatter(
+            x=[min(x_dist), max(x_dist)], y=[z_red, z_red],
+            name="RED: Voie Min",
+            line=dict(color='red', width=2, dash='dot')
+        ))
+        fig_cs.add_trace(go.Scatter(
+            x=[min(x_dist), max(x_dist)], y=[z_orange, z_orange],
+            name="ORANGE: Talus Mean",
+            line=dict(color='orange', width=2, dash='dash')
+        ))
+        fig_cs.add_trace(go.Scatter(
+            x=[min(x_dist), max(x_dist)], y=[z_yellow, z_yellow],
+            name="YELLOW: Buse Max",
+            line=dict(color='gold', width=1, dash='dot')
+        ))
+
+        fig_cs.update_layout(
+            yaxis=dict(title="Elevation NGF (m)",
+                       range=[min(z_elev) - 1, max(z_elev) + 2]),
+            xaxis=dict(title="Distance from Asset Center (m)"),
+            margin=dict(l=40, r=20, t=30, b=40),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02,
+                        xanchor="right", x=1),
+            height=350
+        )
+        st.plotly_chart(fig_cs, config={"displayModeBar": False}, use_container_width=True)
+
+        # Caption with metadata
+        asset_info = all_assets[all_assets["name"] == selected_asset]
+        if not asset_info.empty:
+            row = asset_info.iloc[0]
+            icon = "📡" if has_dtm_profile else "📐"
+            st.caption(
+                f"{icon} **{selected_asset}** | {row['asset_type']} | "
+                f"{row['lat']:.4f}°N, {row['lon']:.4f}°E | "
+                f"Source: _{source_label}_"
+            )
+    else:
+        st.info("Select an asset above to view its terrain cross-section.")
+
+
 
 # ============================================================
 # RIGHT PANEL: Alerts, SWI, Event Log (all driven by time slider)

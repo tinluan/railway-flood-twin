@@ -105,13 +105,25 @@ To make HEC-RAS computationally feasible on a 400km railway line:
 
 ## 📋 Task List
 
-- [ ] **Task 2.1**: Implement `SWI_Calculator` (Leaky Bucket, recursive formula).
+- [x] **Task 2.1**: Implement `SWI_Calculator` (Leaky Bucket, recursive formula). — Done in `regen_wse.py`
 - [ ] **Task 2.2**: Implement `SWI_Calibrator` (10-year AUC optimization loop, T=1 to 60 days).
-- [ ] **Task 2.3**: Implement `RunoffSigmoid` to convert SWI to a dynamic runoff coefficient.
-- [ ] **Task 2.4**: Implement `HEC_RAS_Trigger` (call HEC-RAS 2D when threshold exceeded).
+- [x] **Task 2.3**: Implement `RunoffSigmoid` to convert SWI to a dynamic runoff coefficient. — Done in `regen_wse.py`
+- [x] **Task 2.4**: Implement `HEC_RAS_Trigger` (call HEC-RAS via COM API). — Bridge ready in `hecras_bridge.py`, awaiting `.prj` file.
 - [ ] **Task 2.5**: Implement `HEC_RAS_Reader` (extract WSE/Velocity from HDF5 output).
 - [ ] **Task 2.6**: Implement `FragilityCurveEvaluator` (convert WSE to Probability of Failure).
-- [ ] **Task 2.7**: Implement the `AlertDispatcher` (Green/Yellow/Red + ETCS sync).
+- [x] **Task 2.7**: Implement the `AlertDispatcher` (Yellow/Orange/Red + ETCS stop logic). — Done in `app_main.py`
+- [x] **Task 2.8**: Register all 103 assets with Z-thresholds in `z_config.json`. — Done.
+- [x] **Task 2.9**: Extract DTM cross-sections for 73 assets. — Done in `cross_sections.json`.
+- [ ] **Task 2.10**: Extract 3D BIM cross-sections from MULTIPATCH for 100% coverage. — Planned.
+- [ ] **Task 2.11**: Verify 3D MULTIPATCH vertical datum vs DTM NGF. — Planned.
+
+---
+
+## Naming Convention (MANDATORY)
+All asset names in code and data files must use **ASCII-only** identifiers:
+- `Fosse terre` (not Fossé terre)
+- `Fosse terre revetu` (not Fossé terre revêtu)
+- `Drainage longitudinal a ciel ouvert` (not ...à ciel ouvert)
 
 ---
 
