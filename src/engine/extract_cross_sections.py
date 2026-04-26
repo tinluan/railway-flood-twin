@@ -1,16 +1,28 @@
 import os
 import json
+import sys
+import logging
 import rasterio
 import numpy as np
 import geopandas as gpd
 from pathlib import Path
 from shapely.geometry import Point, LineString
 
-# Hardcoded paths based on the project structure
-DATA_DIR = Path(r"G:\Shared drives\DigiTwin\railway-flood-twin\data")
-GIS_DIR = DATA_DIR / "staging" / "gis"
-TERRAIN_DIR = DATA_DIR / "staging" / "terrain"
-OUT_DIR = DATA_DIR / "processed"
+# Use canonical path resolver — never hardcode paths.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from src.utils.paths import ProjectPaths
+
+paths = ProjectPaths()
+logger = logging.getLogger(__name__)
+
+# NOTE: This script only has 3 asset types (Pont Rail, Buse, Dalot).
+# The remaining 4 types (Fosse terre, Fosse revetu, Talus, Voie)
+# were added later in the project. Update `configs` below to include them.
+# Their GeoPackage files follow the same naming pattern as the 3 listed.
+
+GIS_DIR     = paths.STAGING / "gis"
+TERRAIN_DIR = paths.STAGING / "terrain"
+OUT_DIR     = paths.PROCESSED_DATA
 
 def extract_profiles():
     print("Loading GIS data...")

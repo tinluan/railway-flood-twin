@@ -43,6 +43,7 @@
 - [x] **3D BIM Discovered**: MULTIPATCH shapefiles in `maquette_3d/` confirmed to have full Z vertices for all assets.
 
 ### In Progress
+- [ ] **Synthetic 2D Inundation Map**: Create a "bathtub" script to generate a dynamic blue flood polygon (GeoJSON) for the dashboard showcase, proving 2D UI capability before actual HEC-RAS Mapper integration.
 - [ ] **Stitched Synthetic Profile**: Rebuild the UI cross-section to show an integrated platform (Voie + Talus + Fosse) rather than an isolated asset.
 - [ ] **Longitudinal Bridge View**: Refactor cross-section logic for `Pont Rail` to sample parallel to the track.
 - [ ] **UI Hotspot Lock**: Add a toggle to disable "Auto-Focus" so the user can lock the dashboard on a single asset while moving the time slider.
@@ -66,11 +67,12 @@
 ---
 
 ## Next Technical Steps
-1. **Build Stitched Synthetic Profile** — Re-engineer the synthetic geometric fallback to show connected infrastructure.
-2. **Implement Bridge View** — Apply the longitudinal section logic for `Pont Rail`.
-3. **Verify 3D MULTIPATCH datum** — Compare raw Z vs DTM at same coordinates.
-4. **Build 3D cross-section extractor** — Slice profiles from BIM vertex data (100% coverage).
-5. **Acquire HEC-RAS `.prj` file** — Enable real hydraulic simulation.
+1. **Develop Synthetic 2D Inundation Map** — Extract flood extent polygons from DTM + WSE for UI showcase.
+2. **Build Stitched Synthetic Profile** — Re-engineer the synthetic geometric fallback to show connected infrastructure.
+3. **Implement Bridge View** — Apply the longitudinal section logic for `Pont Rail`.
+4. **Verify 3D MULTIPATCH datum** — Compare raw Z vs DTM at same coordinates.
+5. **Build 3D cross-section extractor** — Slice profiles from BIM vertex data (100% coverage).
+6. **Acquire HEC-RAS `.prj` file** — Enable real hydraulic simulation.
 
 ---
 

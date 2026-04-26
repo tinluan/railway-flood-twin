@@ -343,6 +343,14 @@ with col1:
                         data="https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
                         get_tile_data=None,
                     ),
+                    # =========================================================
+                    # TODO (AI COPILOT): Add Synthetic 2D Inundation Layer Here
+                    # =========================================================
+                    # 1. Check if `data/processed/synthetic_flood.geojson` exists.
+                    # 2. If yes, read it and create a new pdk.Layer("GeoJsonLayer").
+                    # 3. Set get_fill_color=[0, 100, 255, 100] (semi-transparent blue).
+                    # 4. Insert it into this layers list just below the TileLayer.
+                    
                     *infra_layers,
                     risk_layer,
                 ],
@@ -385,6 +393,13 @@ with col1:
             critical_idx = asset_options.index(critical_name)
             
     selected_asset = st.selectbox("📌 Select Critical Asset to Analyze:", asset_options, index=critical_idx) if asset_options else None
+    
+    # =========================================================
+    # TODO (AI COPILOT): Implement UI Hotspot Lock
+    # =========================================================
+    # 1. Add a `st.checkbox("Lock Auto-Focus")` above the selectbox.
+    # 2. If checked, store the `selected_asset` in `st.session_state`.
+    # 3. If unchecked, let the `critical_idx` logic (above) run freely.
     
     # Get dynamic thresholds
     z_yellow = 220.0
@@ -478,6 +493,18 @@ with col1:
     # ============================================================
     st.subheader("Contextual Cross-Section (Terrain + Ditch)")
 
+    # =========================================================
+    # TODO (AI COPILOT): Implement Stitched Synthetic Profile
+    # =========================================================
+    # 1. Modify `make_synthetic_profile` below to return an "Integrated Platform".
+    # 2. Instead of a single trapezoid, build a 30m wide section.
+    # 3. Logic: Look up `nearest_talus` and `nearest_voie` in `z_config` for the `asset_name`.
+    #    - If it's a Fosse, draw a V-shape.
+    #    - If it's a Talus, draw a slope.
+    #    - If it's a Voie, draw a flat plateau at the top.
+    # 4. Stitch them together so X runs from -15m to +15m.
+    # 5. BONUS: Color the specific asset the user selected in a brighter color.
+    
     def make_synthetic_profile(asset_name, z_yellow_val, z_orange_val):
         """Generate a standard trapezoidal railway cross-section from engineering defaults."""
         import numpy as np
