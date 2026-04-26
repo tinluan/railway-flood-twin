@@ -118,6 +118,17 @@ all_assets = load_assets()
 infra_data = load_infra_layers()
 z_config  = load_z_config()
 
+# --- Replace monolithic Voie_0 with segmented track sections ---
+voie_seg_file = PROCESSED_DATA / "voie_segments.json"
+if voie_seg_file.exists():
+    with open(voie_seg_file, "r") as f:
+        voie_segments = json.load(f)
+    # Remove old Voie_0 row(s) from all_assets
+    all_assets = all_assets[~all_assets["name"].str.startswith("Voie_")]
+    # Add each segment as a separate asset row
+    seg_rows = pd.DataFrame(voie_segments)[["name", "asset_type", "lat", "lon"]]
+    all_assets = pd.concat([all_assets, seg_rows], ignore_index=True)
+
 @st.cache_data
 def load_wse_results():
     wse_file = PROCESSED_DATA / "hecras_wse_results.json"
