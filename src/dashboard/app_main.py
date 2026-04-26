@@ -347,28 +347,6 @@ with col1:
         except Exception:
             infra_layers = []
 
-        # Build dynamic flood layer — color by corridor risk severity
-        flood_layers = []
-        flood_geojson = flood_timesteps.get(str(t_idx), {"type": "FeatureCollection", "features": []})
-        if flood_geojson.get("features"):
-            # Flood color matches the corridor's overall CAP risk level
-            cap = risk_to_cap_level(max_risk)
-            flood_fill = {
-                "GREEN":  [76, 175, 80, 60],
-                "YELLOW": [255, 235, 59, 80],
-                "ORANGE": [255, 152, 0, 100],
-                "RED":    [244, 67, 54, 120],
-            }.get(cap, [30, 100, 230, 90])
-            flood_line = [c if i < 3 else 180 for i, c in enumerate(flood_fill)]
-            flood_layers.append(pdk.Layer(
-                "GeoJsonLayer",
-                data=flood_geojson,
-                get_fill_color=flood_fill,
-                get_line_color=flood_line,
-                line_width_min_pixels=1,
-                pickable=False,
-            ))
-
         try:
             st.pydeck_chart(pdk.Deck(
                 map_style=None,
@@ -385,7 +363,6 @@ with col1:
                         data="https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
                         get_tile_data=None,
                     ),
-                    *flood_layers,
                     *infra_layers,
                     risk_layer,
                 ],
@@ -534,21 +511,14 @@ with col1:
     def make_stitched_profile(asset_name, z_yellow_val, z_orange_val, z_red_val, config):
         """Generate a 30m wide stitched railway platform cross-section.
         Layout: [Fosse L] -- [Talus L] -- [Voie] -- [Talus R] -- [Fosse R]
+        Uses THIS asset's own thresholds to build the profile shape.
         """
-        # Get neighbor Z values from z_config
-        asset_cfg = config.get(asset_name, {})
-        nearest_talus = asset_cfg.get("nearest_talus", "")
-        nearest_voie = asset_cfg.get("nearest_voie", "")
-        talus_cfg = config.get(nearest_talus, {})
-        voie_cfg = config.get(nearest_voie, {})
-
-        # Resolve key elevations
-        fosse_bottom = z_yellow_val - 1.8
-        talus_base = talus_cfg.get("yellow_z_m", z_orange_val - 1.0)
-        talus_top = talus_cfg.get("orange_z_m", z_orange_val)
-        voie_top = voie_cfg.get("red_z_m", z_red_val)  # red_z = voie min (top of track)
-        if voie_top < talus_top:
-            voie_top = talus_top + 0.5  # ensure track is above embankment
+        # Use the asset's own thresholds directly — no distant neighbor lookups
+        # red_z = track surface elevation (from DTM for segments)
+        # orange_z = embankment level
+        # yellow_z = drainage capacity level
+        voie_top = z_red_val          # Track surface = RED threshold
+        fosse_bottom = z_yellow_val - 1.8  # Ditch bottom below drainage level
 
         # Build the profile points (X from -15 to +15)
         x_pts = []
