@@ -126,7 +126,16 @@ def load_wse_results():
             return json.load(f)
     return {}
 
+@st.cache_data
+def load_flood_timesteps():
+    flood_file = PROCESSED_DATA / "synthetic_flood_timesteps.json"
+    if flood_file.exists():
+        with open(flood_file, "r") as f:
+            return json.load(f)
+    return {}
+
 wse_results = load_wse_results()
+flood_timesteps = load_flood_timesteps()
 
 # ============================================================
 # TITLE & SIDEBAR
@@ -136,7 +145,7 @@ st.markdown("**SNCF Professional Standard** - Forecast Simulation Mode")
 
 st.sidebar.header("Control Panel")
 mode = st.sidebar.selectbox("Mode", ["Forecast Simulation", "Live Monitoring", "PLM26 Contest Demo"])
-corridor = st.sidebar.selectbox("Corridor", ["Ligne_400 (Himalayas)"])
+corridor = st.sidebar.selectbox("Corridor", ["Ligne_400 (Cevenol Corridor, France)"])
 
 # --- Asset Filter ---
 ALL_ASSET_TYPES = [
@@ -327,6 +336,19 @@ with col1:
         except Exception:
             infra_layers = []
 
+        # Build dynamic flood layer from pre-generated timestep data
+        flood_layers = []
+        flood_geojson = flood_timesteps.get(str(t_idx), {"type": "FeatureCollection", "features": []})
+        if flood_geojson.get("features"):
+            flood_layers.append(pdk.Layer(
+                "GeoJsonLayer",
+                data=flood_geojson,
+                get_fill_color=[30, 100, 230, 90],
+                get_line_color=[20, 60, 180, 160],
+                line_width_min_pixels=1,
+                pickable=False,
+            ))
+
         try:
             st.pydeck_chart(pdk.Deck(
                 map_style=None,
@@ -343,14 +365,7 @@ with col1:
                         data="https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
                         get_tile_data=None,
                     ),
-                    # =========================================================
-                    # TODO (AI COPILOT): Add Synthetic 2D Inundation Layer Here
-                    # =========================================================
-                    # 1. Check if `data/processed/synthetic_flood.geojson` exists.
-                    # 2. If yes, read it and create a new pdk.Layer("GeoJsonLayer").
-                    # 3. Set get_fill_color=[0, 100, 255, 100] (semi-transparent blue).
-                    # 4. Insert it into this layers list just below the TileLayer.
-                    
+                    *flood_layers,
                     *infra_layers,
                     risk_layer,
                 ],
@@ -381,25 +396,28 @@ with col1:
         st.warning("No assets selected. Use the sidebar filter to choose asset types.")
 
     # ============================================================
-    # GLOBAL ASSET SELECTOR
+    # GLOBAL ASSET SELECTOR with HOTSPOT LOCK
     # ============================================================
     st.subheader("Asset-Specific Hydraulic Forecast")
     
     asset_options = filtered["name"].tolist() if not filtered.empty else []
-    critical_idx = 0
-    if not filtered.empty and "risk_level" in filtered.columns:
-        critical_name = filtered.sort_values("risk_level", ascending=False).iloc[0]["name"]
-        if critical_name in asset_options:
-            critical_idx = asset_options.index(critical_name)
-            
-    selected_asset = st.selectbox("📌 Select Critical Asset to Analyze:", asset_options, index=critical_idx) if asset_options else None
     
-    # =========================================================
-    # TODO (AI COPILOT): Implement UI Hotspot Lock
-    # =========================================================
-    # 1. Add a `st.checkbox("Lock Auto-Focus")` above the selectbox.
-    # 2. If checked, store the `selected_asset` in `st.session_state`.
-    # 3. If unchecked, let the `critical_idx` logic (above) run freely.
+    # Hotspot Lock: prevents auto-jumping when scrubbing the timeline
+    lock_focus = st.checkbox("Lock Asset Focus", value=False, key="lock_focus",
+                             help="Check to keep the selected asset fixed while moving the time slider.")
+    
+    if lock_focus and "locked_asset" in st.session_state and st.session_state["locked_asset"] in asset_options:
+        critical_idx = asset_options.index(st.session_state["locked_asset"])
+    else:
+        critical_idx = 0
+        if not filtered.empty and "risk_level" in filtered.columns:
+            critical_name = filtered.sort_values("risk_level", ascending=False).iloc[0]["name"]
+            if critical_name in asset_options:
+                critical_idx = asset_options.index(critical_name)
+    
+    selected_asset = st.selectbox("Select Critical Asset to Analyze:", asset_options, index=critical_idx) if asset_options else None
+    if selected_asset:
+        st.session_state["locked_asset"] = selected_asset
     
     # Get dynamic thresholds
     z_yellow = 220.0
@@ -489,38 +507,57 @@ with col1:
     st.plotly_chart(fig, config={"displayModeBar": True, "scrollZoom": False}, use_container_width=True)
 
     # ============================================================
-    # CONTEXTUAL CROSS-SECTION VIEWER
+    # CONTEXTUAL CROSS-SECTION VIEWER — Stitched Integrated Platform
     # ============================================================
-    st.subheader("Contextual Cross-Section (Terrain + Ditch)")
+    st.subheader("Integrated Platform Cross-Section")
 
-    # =========================================================
-    # TODO (AI COPILOT): Implement Stitched Synthetic Profile
-    # =========================================================
-    # 1. Modify `make_synthetic_profile` below to return an "Integrated Platform".
-    # 2. Instead of a single trapezoid, build a 30m wide section.
-    # 3. Logic: Look up `nearest_talus` and `nearest_voie` in `z_config` for the `asset_name`.
-    #    - If it's a Fosse, draw a V-shape.
-    #    - If it's a Talus, draw a slope.
-    #    - If it's a Voie, draw a flat plateau at the top.
-    # 4. Stitch them together so X runs from -15m to +15m.
-    # 5. BONUS: Color the specific asset the user selected in a brighter color.
-    
-    def make_synthetic_profile(asset_name, z_yellow_val, z_orange_val):
-        """Generate a standard trapezoidal railway cross-section from engineering defaults."""
-        import numpy as np
-        ditch_bottom_z = z_yellow_val - 1.8  # 1.8m ditch depth below yellow threshold
-        bank_z         = z_orange_val          # Bank top = orange threshold
-        # Trapezoidal cross-section: 24m wide, 3:1 side slopes
-        x = np.linspace(-12, 12, 49)
-        z = []
-        for xi in x:
-            if abs(xi) > 9:        # outer embankment slopes up
-                z.append(round(bank_z + (abs(xi) - 9) * 0.5, 3))
-            elif abs(xi) > 4:      # ditch side slopes
-                z.append(round(ditch_bottom_z + (abs(xi) - 4) * ((bank_z - ditch_bottom_z) / 5), 3))
-            else:                   # ditch flat bottom
-                z.append(round(ditch_bottom_z, 3))
-        return list(x.round(2)), z
+    def make_stitched_profile(asset_name, z_yellow_val, z_orange_val, z_red_val, config):
+        """Generate a 30m wide stitched railway platform cross-section.
+        Layout: [Fosse L] -- [Talus L] -- [Voie] -- [Talus R] -- [Fosse R]
+        """
+        # Get neighbor Z values from z_config
+        asset_cfg = config.get(asset_name, {})
+        nearest_talus = asset_cfg.get("nearest_talus", "")
+        nearest_voie = asset_cfg.get("nearest_voie", "")
+        talus_cfg = config.get(nearest_talus, {})
+        voie_cfg = config.get(nearest_voie, {})
+
+        # Resolve key elevations
+        fosse_bottom = z_yellow_val - 1.8
+        talus_base = talus_cfg.get("yellow_z_m", z_orange_val - 1.0)
+        talus_top = talus_cfg.get("orange_z_m", z_orange_val)
+        voie_top = voie_cfg.get("red_z_m", z_red_val)  # red_z = voie min (top of track)
+        if voie_top < talus_top:
+            voie_top = talus_top + 0.5  # ensure track is above embankment
+
+        # Build the profile points (X from -15 to +15)
+        x_pts = []
+        z_pts = []
+        # Left Fosse: -15 to -11 (flat bottom)
+        for xi in np.linspace(-15, -11, 9):
+            x_pts.append(round(xi, 1))
+            z_pts.append(round(fosse_bottom, 2))
+        # Left Talus slope: -11 to -5 (rises from fosse_bottom to voie_top)
+        for xi in np.linspace(-11, -5, 13)[1:]:
+            frac = (xi - (-11)) / ((-5) - (-11))
+            z_val = fosse_bottom + frac * (voie_top - fosse_bottom)
+            x_pts.append(round(xi, 1))
+            z_pts.append(round(z_val, 2))
+        # Voie plateau: -5 to +5 (flat at voie_top)
+        for xi in np.linspace(-5, 5, 21)[1:]:
+            x_pts.append(round(xi, 1))
+            z_pts.append(round(voie_top, 2))
+        # Right Talus slope: +5 to +11 (descends from voie_top to fosse_bottom)
+        for xi in np.linspace(5, 11, 13)[1:]:
+            frac = (xi - 5) / (11 - 5)
+            z_val = voie_top - frac * (voie_top - fosse_bottom)
+            x_pts.append(round(xi, 1))
+            z_pts.append(round(z_val, 2))
+        # Right Fosse: +11 to +15 (flat bottom)
+        for xi in np.linspace(11, 15, 9)[1:]:
+            x_pts.append(round(xi, 1))
+            z_pts.append(round(fosse_bottom, 2))
+        return x_pts, z_pts
 
     if selected_asset:
         asset_key = selected_asset
@@ -532,9 +569,9 @@ with col1:
             z_elev  = profile["elevations"]
             source_label = "DTM (LiDAR)"
         else:
-            # Synthetic geometric fallback from z_config thresholds
-            x_dist, z_elev = make_synthetic_profile(asset_key, z_yellow, z_orange)
-            source_label = "Synthetic Geometry (no DTM coverage)"
+            # Stitched integrated platform from z_config thresholds
+            x_dist, z_elev = make_stitched_profile(asset_key, z_yellow, z_orange, z_red, z_config)
+            source_label = "Integrated Platform (Fosse-Talus-Voie-Talus-Fosse)"
 
         fig_cs = go.Figure()
 
