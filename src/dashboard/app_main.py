@@ -196,54 +196,54 @@ else:
     current_ts = "N/A"
     delta_swi = 0
 
-# --- Compute risk per asset at this timestep ---
-def compute_risk_at_t(row, rain_mm, swi_mm, runoff_mm, config):
-    """Per-asset risk using precise 3D vertical thresholds.
+# --- Compute risk per asset using ACTUAL WSE from hecras_wse_results.json ---
+# Physics: one corridor-wide WSE at each timestep. Each asset's risk is
+# determined by comparing its elevation thresholds against the actual water level.
+def compute_risk_at_t(row, t_idx, wse_results, config):
+    """Per-asset risk using actual WSE from synthetic HEC-RAS results.
     
-    Logic: 
-    1. Simulates local Water Surface Elevation (WSE) based on rain intensity and runoff.
-    2. Compares WSE against asset-specific Yellow/Orange/Red Z-thresholds.
+    Logic:
+    1. Get this asset's WSE at timestep t_idx from wse_results.
+    2. Compare WSE against the asset's Yellow/Orange/Red Z-thresholds.
+    3. If an asset is physically lower than a flooded asset, it must also be flooded.
     """
     asset_id = row["name"]
     asset_config = config.get(asset_id)
     
-    # 1. Physics: Simulate Water Rise (WSE)
-    # Heavy rain and high runoff increase the water level (simulated HEC-RAS proxy for now)
-    water_rise_m = (rain_mm * 0.05) + (runoff_mm * 0.1) # e.g. 40mm/h rain + 15mm runoff = 3.5m rise
+    if not asset_config:
+        return 0  # No config = no risk evaluation possible
     
-    if asset_config:
-        # We assume the ditch/culvert bottom is roughly 1.5m below its top (yellow_z)
-        base_z = asset_config["yellow_z_m"] - 1.5 
-        current_wse = base_z + water_rise_m
-        
-        # 2. Risk Hierarchy Evaluation
-        if current_wse >= asset_config["red_z_m"]:
-            # RED: Track submerged
-            return 100
-        elif current_wse >= asset_config["orange_z_m"]:
-            # ORANGE: Embankment soaked / Ditch overflowing
-            return 75
-        elif current_wse >= asset_config["yellow_z_m"]:
-            # YELLOW: Drainage capacity reached
-            return 50
-        else:
-            # GREEN: Safe
-            return int((water_rise_m / 1.5) * 25) # Scale 0-25 based on how full the ditch is
-            
+    # Get the WSE for this asset at this timestep
+    asset_wse_data = wse_results.get(asset_id, {})
+    wse_series = asset_wse_data.get("wse_m", [])
+    
+    if wse_series and t_idx < len(wse_series):
+        current_wse = wse_series[t_idx]
     else:
-        # Fallback for assets not in config (e.g. roads)
-        lat_min, lat_max = 44.6498, 44.6628
-        lat = row.get("lat", (lat_min + lat_max) / 2)
-        vulnerability = 1.0 - (lat - lat_min) / (lat_max - lat_min) if lat_max > lat_min else 0.5
-        vulnerability = max(0.0, min(1.0, vulnerability))
-        
-        base = min(rain_mm * 2.5, 40)
-        swi_factor = min(swi_mm * 150, 25)
-        runoff_factor = min(runoff_mm * 80, 15)
-        weather_risk = base + swi_factor + runoff_factor
-        terrain_boost = weather_risk * (0.15 + 0.35 * vulnerability)
-        final_risk = weather_risk + terrain_boost
-        return min(int(final_risk), 100)
+        return 0
+    
+    yellow_z = asset_config["yellow_z_m"]
+    orange_z = asset_config["orange_z_m"]
+    red_z = asset_config["red_z_m"]
+    
+    # Risk Hierarchy: compare actual WSE against thresholds
+    if current_wse >= red_z:
+        return 100  # RED: asset fully submerged
+    elif current_wse >= orange_z:
+        # Scale 75-99 within orange zone
+        frac = (current_wse - orange_z) / max(red_z - orange_z, 0.1)
+        return int(75 + frac * 24)
+    elif current_wse >= yellow_z:
+        # Scale 50-74 within yellow zone
+        frac = (current_wse - yellow_z) / max(orange_z - yellow_z, 0.1)
+        return int(50 + frac * 24)
+    else:
+        # GREEN: water below drainage capacity
+        base_z = asset_wse_data.get("base_z_m", yellow_z - 2.0)
+        if current_wse > base_z:
+            frac = (current_wse - base_z) / max(yellow_z - base_z, 0.1)
+            return int(frac * 25)
+        return 0
 
 # --- CAP International Standard Alert Levels ---
 # GREEN 0-25% | YELLOW 25-50% | ORANGE 50-75% | RED 75-100%
@@ -265,7 +265,7 @@ def risk_to_cap_level(r):
 
 if not all_assets.empty:
     all_assets["risk_level"] = all_assets.apply(
-        lambda r: compute_risk_at_t(r, current_rain, current_swi, current_runoff_mm, z_config), axis=1
+        lambda r: compute_risk_at_t(r, t_idx, wse_results, z_config), axis=1
     )
     all_assets["cap_level"] = all_assets["risk_level"].apply(risk_to_cap_level)
     all_assets["color"] = all_assets["cap_level"].apply(lambda lv: CAP_COLORS_RGBA[lv])
@@ -336,15 +336,24 @@ with col1:
         except Exception:
             infra_layers = []
 
-        # Build dynamic flood layer from pre-generated timestep data
+        # Build dynamic flood layer — color by corridor risk severity
         flood_layers = []
         flood_geojson = flood_timesteps.get(str(t_idx), {"type": "FeatureCollection", "features": []})
         if flood_geojson.get("features"):
+            # Flood color matches the corridor's overall CAP risk level
+            cap = risk_to_cap_level(max_risk)
+            flood_fill = {
+                "GREEN":  [76, 175, 80, 60],
+                "YELLOW": [255, 235, 59, 80],
+                "ORANGE": [255, 152, 0, 100],
+                "RED":    [244, 67, 54, 120],
+            }.get(cap, [30, 100, 230, 90])
+            flood_line = [c if i < 3 else 180 for i, c in enumerate(flood_fill)]
             flood_layers.append(pdk.Layer(
                 "GeoJsonLayer",
                 data=flood_geojson,
-                get_fill_color=[30, 100, 230, 90],
-                get_line_color=[20, 60, 180, 160],
+                get_fill_color=flood_fill,
+                get_line_color=flood_line,
                 line_width_min_pixels=1,
                 pickable=False,
             ))
