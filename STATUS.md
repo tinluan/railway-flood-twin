@@ -15,6 +15,8 @@ ARCHITECTURE.md    -> Engineering rules, formulas, data models (read this first)
 STATUS.md          -> This file: live task tracker
 .github/copilot-instructions.md -> AI context loaded automatically by VS Code Copilot
 src/dashboard/app_main.py       -> Main Streamlit application
+src/api/main.py                 -> FastAPI REST API and routes
+tests/test_api.py               -> API test suite
 src/engine/synthetic_inundation.py -> Bathtub flood polygon generator (DONE)
 src/engine/hecras_bridge.py     -> HEC-RAS 6.7 COM connector (ready, needs .prj)
 src/engine/hec_ras_runner.py    -> HEC-RAS 6.1 COM runner (legacy, superseded)
@@ -48,6 +50,8 @@ data/processed/swi_results.csv  -> SWI + runoff coefficient per hour
 - [x] Dashboard live: map, time slider, WSE chart, cross-section, event log
 - [x] 3D BIM MULTIPATCH data confirmed in `data/raw/maquette_3d/`
 - [x] Documentation consolidated into 4 master files (README, ARCHITECTURE, STATUS, copilot-instructions)
+- [x] RESTful API layer (FastAPI) exposing assets, alerts, hydrology, and engine endpoints
+- [x] API test suite implemented (23/23 tests passing)
 - [x] **Task 1** — Synthetic 2D inundation map: time-varying flood polygons → `synthetic_flood_timesteps.json`
 - [x] **Task 2** — Flood layer loaded in dashboard from `synthetic_flood_timesteps.json`
 - [x] **Task 3** — Stitched 30m platform cross-section (Fosse-Talus-Voie-Talus-Fosse)

@@ -18,5 +18,14 @@ psycopg2-binary
 geoalchemy2
 sqlalchemy
 
+# REST API
+fastapi
+uvicorn[standard]
+pydantic
+
+# Testing
+pytest
+httpx
+
 # HEC-RAS COM API (Windows only)
 pywin32

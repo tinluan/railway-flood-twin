@@ -186,9 +186,24 @@ Both resolve via `.env` `DATA_ROOT`. Do not break the legacy import in `app_main
 | `data/raw/rainfall_Ligne_400.csv` | 48h Cevenol storm input |
 | `data/raw/maquette_3d/` | 3D BIM MULTIPATCH shapefiles (all assets) |
 | `src/dashboard/app_main.py` | Main Streamlit dashboard |
+| `src/api/main.py` | FastAPI application and REST endpoints |
+| `tests/test_api.py` | API validation test suite |
 | `src/engine/hecras_bridge.py` | HEC-RAS 6.7 COM API connector |
 | `src/engine/synthetic_inundation.py` | Bathtub flood polygon generator (DONE) |
 | `src/engine/segment_voie.py` | Splits Voie into DTM-sampled ~100m segments |
 | `src/engine/swi_calculator.py` | SWI recursive filter + sigmoid runoff |
 | `src/engine/fragility_curves.py` | Log-normal ballast scour P(failure) |
 | `src/engine/alert_dispatcher.py` | RAMS-compliant operational alert generator |
+
+---
+
+## 9. API Architecture
+
+- **Framework**: FastAPI (`src/api/main.py`)
+- **Purpose**: Programmatic access to Ligne_400 Digital Twin data (Layer 4 vulnerability verdicts).
+- **Endpoints**:
+  - `GET /api/v1/assets`: Static infrastructure config.
+  - `GET /api/v1/alerts/current`: Real-time RAMS verdicts & hotspot auto-focus.
+  - `GET /api/v1/hydrology/swi`: SWI values & synthetic flood polygons.
+  - `POST /api/v1/engine/simulate`: Run custom rainfall array memory-only simulations.
+- **Testing**: `tests/test_api.py` (23 passing tests via TestClient).

@@ -25,7 +25,14 @@ In your terminal, start the Streamlit Digital Twin application using our local c
 ```
 This will open the dashboard in your web browser.
 
-### Step 4: AI Context
+### Step 4: Run the API Server (Optional)
+To interact with the Digital Twin programmatically via REST API, start the FastAPI server:
+```powershell
+.\.conda\python.exe -m uvicorn src.api.main:app --reload --port 8000
+```
+Swagger UI will be available at `http://localhost:8000/docs`.
+
+### Step 5: AI Context
 If you are using GitHub Copilot or another AI assistant, the project's engineering rules are in **`.github/copilot-instructions.md`** (loaded automatically by VS Code Copilot). For the full blueprint, read **`ARCHITECTURE.md`**.
 
 ---
