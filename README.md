@@ -25,8 +25,8 @@ In your terminal, start the Streamlit Digital Twin application using our local c
 ```
 This will open the dashboard in your web browser.
 
-### Step 4: AI Handoff
-If you are using GitHub Copilot to help you write code, please open the **`AI_HANDOFF.md`** file first so your AI understands the project's engineering rules.
+### Step 4: AI Context
+If you are using GitHub Copilot or another AI assistant, the project's engineering rules are in **`.github/copilot-instructions.md`** (loaded automatically by VS Code Copilot). For the full blueprint, read **`ARCHITECTURE.md`**.
 
 ---
 

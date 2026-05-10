@@ -1,5 +1,12 @@
 # Document Index — Railway Flood-Risk Digital Twin
 
+> **⚠️ ARCHIVED**: These documents are from the project's early phases and are
+> kept for reference only. The current authoritative documents are:
+> - **`README.md`** — Quickstart guide
+> - **`ARCHITECTURE.md`** — Engineering rules and formulas (single source of truth)
+> - **`STATUS.md`** — Live task tracker
+> - **`.github/copilot-instructions.md`** — AI coding context
+
 This pack completes the core management and implementation documents for the student project.
 
 ## Recommended reading order

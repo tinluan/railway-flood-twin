@@ -1,8 +1,8 @@
 # Railway Flood-Risk Digital Twin — ARCHITECTURE
 
 **Project**: SNCF Ligne_400 (Himalayas Corridor) Flood Risk Demonstrator
-**Version**: v0.3.0
-**Last Updated**: 2026-04-26
+**Version**: v0.4.0
+**Last Updated**: 2026-05-10
 
 This file is the single source of truth for all engineering decisions.
 When in doubt, follow the rules defined here.
@@ -55,6 +55,10 @@ encoding errors. French accents are removed everywhere.
 Applies to: `z_config.json`, `cross_sections.json`, `hecras_wse_results.json`,
 all Python dicts, and GeoPackage layer names.
 
+> **Note**: The GeoPackage _filenames_ on disk still use French accents
+> (e.g. `Fossé terre_fixed.gpkg`). This is acceptable — the ASCII-only rule
+> applies to **code keys** and **JSON keys**, not to filesystem paths.
+
 ---
 
 ## 3. Risk & Alert Hierarchy
@@ -78,8 +82,10 @@ System follows the engineering chain: **Hydraulics → Geotechnics → Operation
 
 ### 4.1 DTM Raster Sampling (73/103 assets have coverage)
 - Source: `data/staging/terrain/dtm_fixed.tif` (~1GB, on shared drive)
-- Method: Sample a 24m perpendicular line at 0.5m intervals from the asset centroid.
+- Method: Sample a **60m East-West** line at **1m intervals** from the asset centroid.
+  (Ligne 400 runs roughly N-S, so E-W ≈ perpendicular to track.)
 - Results stored in: `data/processed/cross_sections.json`
+- Extractor: `src/engine/extract_cross_sections.py`
 
 ### 4.2 Synthetic Geometric Fallback (30 assets outside DTM coverage)
 For assets without DTM data, construct a mathematical profile using z_config thresholds.
@@ -106,19 +112,33 @@ Use `z_config.json` `nearest_talus` and `nearest_voie` fields to get neighbor Z 
 - Extend 30m each side of the bridge to capture the Talus approaches.
 - Display as a "sandwich": top=deck level, bottom=ground/riverbed, fill=water clearance.
 
-### 4.4 Hotspot Auto-Focus (Known UI Behavior)
-The dashboard auto-selects the highest-risk asset at each timestep. This causes the
-cross-section view to "jump" assets as the timeline moves. Fix: implement UI Lock (Task 4).
+### 4.4 Hotspot Auto-Focus (with UI Lock)
+The dashboard auto-selects the highest-risk asset at each timestep. The
+`st.checkbox("Lock Asset Focus")` (Task 4, DONE) prevents the cross-section
+view from jumping when scrubbing the timeline — it freezes the selected asset
+via `st.session_state["locked_asset"]`.
 
 ---
 
 ## 5. Hydrological Model (SWI + Synthetic WSE)
 
-- **SWI Leaky Bucket**: capacity=150mm, decay_rate=0.02/h
+- **SWI Recursive Exponential Filter** (`src/engine/swi_calculator.py`):
+  - Formula: `SWI(t) = R(t) * (1 - C) + SWI(t-1) * C` where `C = 0.5^(1/T)`, `T = 240h` (half-life 10 days)
+  - **Not** a leaky bucket — there is no hard capacity ceiling.
+- **Sigmoid Runoff Coefficient**: `C_runoff = C_max / (1 + e^(-k * (SWI - SWI_mid)))`
+  - Parameters: `C_max=0.9`, `C_min=0.1`, `k=0.05`, `SWI_mid=150mm`
 - **WSE Formula**: Rational Method + Manning's approximation + elevation-dependent
   valley accumulation effect.
 - **Data**: `data/raw/rainfall_Ligne_400.csv` — 48h Cevenol storm (peak 40.9 mm/h at T+15h)
-- **Output**: `data/processed/hecras_wse_results.json` — 103 assets × 48 timesteps
+- **Output**:
+  - `data/processed/swi_results.csv` — SWI, runoff_coeff, active_runoff per hour
+  - `data/processed/hecras_wse_results.json` — 120+ assets × 48 timesteps (after Voie segmentation)
+
+### 5.1 Synthetic Flood Polygons (`src/engine/synthetic_inundation.py`)
+- **Method**: Corridor buffer around track + low-lying assets (Buse, Dalot)
+- Buffer scales with WSE intensity: `MIN_BUFFER=5m` to `MAX_BUFFER=120m` (quadratic scaling)
+- **Output**: `data/processed/synthetic_flood_timesteps.json` — 48 GeoJSON FeatureCollections
+  keyed by timestep index (`"0"` through `"47"`), each in EPSG:4326.
 
 ---
 
@@ -134,10 +154,17 @@ cross-section view to "jump" assets as the timeline moves. Fix: implement UI Loc
 ## 7. Dashboard Architecture
 
 - **Framework**: Streamlit (`src/dashboard/app_main.py`)
-- **Map**: PyDeck with OpenStreetMap base tiles + GeoJSON infrastructure layers
-- **Assets Monitored**: 7 types, 103 total
-- **Infrastructure Layers**: Voie, Talus, Fosse terre, Fosse revetu, Drainage
-- **Charts**: WSE 48h time-series + Contextual Cross-Section with water fill
+- **Map**: PyDeck with CARTO base tiles + GeoJSON infrastructure layers + flood polygons
+- **Assets Monitored**: 7 types, 120+ total (after Voie segmentation into ~20 track sections)
+- **Point Assets**: Buse, Dalot, Pont Rail, Fosse terre, Fosse revetu, Talus Terre, Voie segments
+- **Infrastructure Line Layers**: Voie, Talus, Fosse terre, Fosse revetu, Drainage longitudinal
+- **Charts**: WSE 48h time-series + Stitched Platform Cross-Section with water fill
+- **Features**: CAP-standard color alerts, Hotspot Lock checkbox, Top-5 Critical Asset table
+
+### Path Module Note
+The dashboard imports from the **legacy** `src/paths.py` (uses `RAW_DATA`, `PROCESSED_DATA`).
+Engine scripts may use either `src/paths.py` or the canonical `src/utils/paths.py` (`ProjectPaths`).
+Both resolve via `.env` `DATA_ROOT`. Do not break the legacy import in `app_main.py`.
 
 ### To Start the Dashboard
 ```powershell
@@ -150,12 +177,18 @@ cross-section view to "jump" assets as the timeline moves. Fix: implement UI Loc
 
 | File | Description |
 |------|-------------|
-| `data/processed/z_config.json` | 103 assets with Yellow/Orange/Red Z thresholds |
-| `data/processed/cross_sections.json` | 73 DTM terrain profiles |
+| `data/processed/z_config.json` | 120+ assets with Yellow/Orange/Red Z thresholds |
+| `data/processed/cross_sections.json` | 73 DTM terrain profiles (60m E-W, 1m res) |
 | `data/processed/hecras_wse_results.json` | Synthetic 48h WSE per asset |
+| `data/processed/voie_segments.json` | Voie segment metadata with DTM elevations |
+| `data/processed/synthetic_flood_timesteps.json` | 48 GeoJSON flood polygon timesteps |
 | `data/processed/swi_results.csv` | SWI + runoff coefficient per hour |
 | `data/raw/rainfall_Ligne_400.csv` | 48h Cevenol storm input |
 | `data/raw/maquette_3d/` | 3D BIM MULTIPATCH shapefiles (all assets) |
 | `src/dashboard/app_main.py` | Main Streamlit dashboard |
-| `src/engine/hecras_bridge.py` | HEC-RAS COM API connector |
-| `src/engine/synthetic_inundation.py` | Bathtub flood polygon generator (TODO) |
+| `src/engine/hecras_bridge.py` | HEC-RAS 6.7 COM API connector |
+| `src/engine/synthetic_inundation.py` | Bathtub flood polygon generator (DONE) |
+| `src/engine/segment_voie.py` | Splits Voie into DTM-sampled ~100m segments |
+| `src/engine/swi_calculator.py` | SWI recursive filter + sigmoid runoff |
+| `src/engine/fragility_curves.py` | Log-normal ballast scour P(failure) |
+| `src/engine/alert_dispatcher.py` | RAMS-compliant operational alert generator |

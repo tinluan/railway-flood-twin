@@ -1,9 +1,22 @@
+# Core data libraries
 python-dotenv
 pandas
+numpy
 geopandas
 shapely
 rasterio
+scipy
+
+# Dashboard
+streamlit
+plotly
+pydeck
+
+# Database (optional — Supabase integration)
 psycopg
 psycopg2-binary
 geoalchemy2
 sqlalchemy
+
+# HEC-RAS COM API (Windows only)
+pywin32

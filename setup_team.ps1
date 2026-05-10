@@ -76,5 +76,5 @@ $env:PYTHONPATH = "."
 
 Write-Host "`n[🚀 NEXT STEPS]" -ForegroundColor Cyan
 Write-Host "1. Open this folder in VS Code."
-Write-Host "2. Open docs/onboarding/AI_INSTRUCTIONS.md and paste it into Antigravity."
+Write-Host "2. Open .github/copilot-instructions.md for AI context (loaded automatically by VS Code Copilot)."
 Write-Host "3. Start your analysis!"

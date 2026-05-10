@@ -1,6 +1,6 @@
 # GitHub Copilot Project Context: Railway Flood-Twin
 # SNCF Railway Flood-Risk Digital Twin — Master Capstone Project
-# Last Updated: 2026-04-26
+# Last Updated: 2026-05-10
 
 You are a senior Python/Streamlit/GIS engineer assisting the team on a
 production-ready Digital Twin for railway flood risk monitoring.
@@ -70,45 +70,45 @@ even if other metrics are not yet exceeded.
 2. Embankment assets (Voie, Talus): Profile is CONVEX — center is highest point.
 3. Bridge assets (Pont Rail): Use a LONGITUDINAL section (parallel to track),
    showing deck level (top) vs ground/riverbed (bottom) = clearance.
-4. Synthetic fallback (no DTM): Build stitched 30m platform:
+4. Synthetic fallback (no DTM): Build stitched 30m platform (DONE in `make_stitched_profile()`):
    [Fosse L] -- [Talus L slope] -- [Voie flat top] -- [Talus R slope] -- [Fosse R]
-   Use `z_config.json` nearest_talus / nearest_voie links to get neighbor Z values.
+   Uses the asset's own Yellow/Orange/Red thresholds to shape the profile.
+   Note: `nearest_voie` in z_config.json still references deleted `Voie_0` — needs remapping.
 
 ---
 
-## Current Sprint Tasks (Demonstrator v0.3)
+## Completed Tasks (v0.3 → v0.4)
 
-Each task has a TODO block in the code. Use Copilot inline chat (Ctrl+I) on the
-TODO block to implement it.
+The following tasks from the v0.3 sprint are **done** and merged:
 
-### Task 1: Synthetic 2D Inundation Map
-- File: `src/engine/synthetic_inundation.py`
-- What: Implement `generate_flood_polygon()` using the pseudo-code in its docstring.
-- Output: `data/processed/synthetic_flood.geojson` in EPSG:4326.
-- Libraries: rasterio, numpy, geopandas, shapely, rasterio.features.
+- ✅ **Task 1**: Synthetic 2D inundation map → `generate_time_varying_flood()` in
+  `src/engine/synthetic_inundation.py`. Output: `data/processed/synthetic_flood_timesteps.json`
+  (48 GeoJSON FeatureCollections, one per hour).
+- ✅ **Task 2**: Flood layer loaded in dashboard from `synthetic_flood_timesteps.json`.
+- ✅ **Task 3**: Stitched 30m platform cross-section → `make_stitched_profile()` in
+  `app_main.py`. Layout: Fosse-Talus-Voie-Talus-Fosse using asset thresholds.
+- ✅ **Task 4**: UI Hotspot Lock → `st.checkbox("Lock Asset Focus")` with `st.session_state`.
 
-### Task 2: Flood Layer on the Map
-- File: `src/dashboard/app_main.py` — find `TODO (AI COPILOT): Add Synthetic 2D Inundation Layer`
-- What: Load synthetic_flood.geojson and add a semi-transparent blue GeoJsonLayer
-  to the PyDeck layers list.
-- Color: [0, 100, 255, 100]
+---
 
-### Task 3: Stitched Synthetic Cross-Section
-- File: `src/dashboard/app_main.py` — find `TODO (AI COPILOT): Implement Stitched Synthetic Profile`
-- What: Rewrite `make_synthetic_profile()` to produce a 30m stitched platform
-  instead of a single trapezoid. Use z_config nearest_voie / nearest_talus.
-- Profile shape (X from -15m to +15m):
-  * [-15, -11] : Fosse bottom rising to Talus base (Concave)
-  * [-11, -5]  : Talus slope up to track level
-  * [-5,   5]  : Voie flat plateau
-  * [5,   11]  : Talus slope back down
-  * [11,  15]  : Fosse bottom
+## Current Sprint Tasks (Demonstrator v0.4)
 
-### Task 4: UI Hotspot Lock
-- File: `src/dashboard/app_main.py` — find `TODO (AI COPILOT): Implement UI Hotspot Lock`
-- What: Add `st.checkbox("Lock Asset Focus", key="lock_focus")`.
-  If checked: use `st.session_state.get("locked_asset", asset_options[0])`.
-  If unchecked: use `critical_idx` auto-selection as current.
+### Task 5: Bridge Longitudinal View (lower priority)
+- File: `src/dashboard/app_main.py`
+- What: For Pont Rail assets, rotate sampling vector from perpendicular to parallel.
+- Show a "sandwich" cross-section: deck level (top) vs ground/riverbed (bottom).
+
+### Task 6: Verify 3D MULTIPATCH Datum
+- Compare Z from `maquette_3d/voie/Voie.shp` against DTM at same X,Y.
+- Use `pyshp` to read MULTIPATCH. Document result in STATUS.md.
+
+### Task 7: Fix Stale `nearest_voie` in z_config.json
+- All non-Voie assets reference deleted `Voie_0`. Remap to nearest `Voie_seg_XX`.
+- Impacts stitched profile accuracy when using neighbor lookups.
+
+### Task 8: Migrate Engine Scripts to `logging`
+- Replace all `print()` calls with `logging` in `src/engine/*.py`.
+- Only `synthetic_inundation.py` currently uses `logging` correctly.
 
 ---
 
