@@ -1,3 +1,71 @@
+"""
+src/engine/extract_cross_sections.py — DTM Terrain Profiler (Layer 2: Bridge)
+===============================================================================
+Extracts 60-metre East-West terrain cross-section profiles for each railway
+infrastructure asset (bridges, culverts, dalots) by sampling the DTM raster.
+The profiles are used by the Streamlit dashboard and API to visualise the
+terrain shape around each asset and contextualise the flood risk.
+
+Architecture Position (Layer 2 — Bridge):
+    - READS:   data/staging/gis/Pont Rail_fixed.gpkg   (bridges)
+               data/staging/gis/Buse_fixed.gpkg        (culverts)
+               data/staging/gis/Dalot_fixed.gpkg       (box culverts, optional)
+               data/staging/terrain/dtm_fixed.tif      (1m resolution DTM raster)
+    - WRITES:  data/processed/cross_sections.json
+    - SERVED BY: src/api/routers/assets.py  (GET /api/v1/cross-sections/{asset_id})
+
+Profile Strategy:
+    For each asset centroid (cx, cy) in EPSG:2154 (Lambert 93, metres):
+    - Sample the DTM at 61 points from cx-30m to cx+30m (East-West transect)
+    - Since Ligne 400 runs roughly North-South, this E-W cut acts as a
+      transverse cross-section perpendicular to the track axis.
+    - 1 m point spacing → 61 elevation readings per asset
+
+Coverage Note:
+    This script only covers Pont Rail, Buse, Dalot (3 asset types).
+    Fosse terre, Fosse revetu, Talus, and Voie were added later.
+    To extend coverage, add their GeoPackage paths to the load block.
+
+Output JSON Structure (cross_sections.json):
+    {
+      "Pont_0": {
+        "distances":   [-30, -29, ..., 0, ..., 29, 30],  # metres from centroid
+        "elevations":  [221.4, 221.5, ..., 224.2, ...],  # metres NGF
+        "asset_type":  "Pont Rail (Bridge)",
+        "center_x":    657823.4,   # EPSG:2154 easting
+        "center_y":    6512034.7   # EPSG:2154 northing
+      },
+      "Buse_1": { ... },
+      ...
+    }
+
+Relationship with other files:
+    UPSTREAM:
+      src/ingestion/load_gis_assets_dotenv.py → loaded GIS layers into DB
+      data/staging/gis/*.gpkg                 → cleaned GeoPackages (source)
+      data/staging/terrain/dtm_fixed.tif      → terrain raster
+    DOWNSTREAM:
+      src/api/routers/assets.py  → GET /api/v1/cross-sections/{asset_id}
+      src/api/schemas.py         → CrossSectionResponse, CrossSectionPoint
+      dashboard/app_main.py      → terrain profile visualisation chart
+    PATH RESOLVER:
+      Uses src/utils/paths.py::ProjectPaths (NOT the legacy src/paths.py)
+
+Example Usage:
+    # Run the full extraction to regenerate cross_sections.json:
+    python src/engine/extract_cross_sections.py
+    # → prints per-asset progress and saves data/processed/cross_sections.json
+
+    # Import and call from another script:
+    from src.engine.extract_cross_sections import extract_profiles
+    extract_profiles()
+    # On success: "Successfully saved cross sections to ...cross_sections.json"
+
+    # Access via the API after extraction:
+    # GET http://localhost:8000/api/v1/cross-sections/Pont_0
+    # → {"asset_id": "Pont_0", "source": "dtm", "profile": [...]}
+"""
+
 import os
 import json
 import sys

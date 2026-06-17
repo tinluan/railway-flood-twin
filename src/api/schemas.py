@@ -1,7 +1,46 @@
 """
-Pydantic Data Models (Schemas) for the Railway Flood-Twin API
-=============================================================
-All JSON keys follow the project's ASCII-only naming convention.
+src/api/schemas.py — Pydantic Data Models (API Schemas)
+=======================================================
+Defines all request and response schemas used by the FastAPI endpoints.
+These models ensure type safety, automatic validation, and generate the OpenAPI
+specification (Swagger documentation).
+
+Naming Convention:
+    All JSON keys follow the project's ASCII-only naming convention to avoid
+    encoding issues.
+
+Key Enums:
+    AlertColor: CAP-standard RAMS colors (GREEN, YELLOW, ORANGE, RED).
+    RiskCategory: Fragility-curve risk classes (LOW, MEDIUM, HIGH).
+    AssetType: Supported infrastructure types (Voie, Buse, Pont Rail, etc.).
+
+Key Models:
+    AssetSummary / AssetDetail: Infrastructure metadata and Z-thresholds.
+    CrossSectionResponse: DTM terrain profiles (60m East-West).
+    SWIResponse: Hydrological time-series (rainfall, SWI, runoff).
+    AlertVerdict: Single-asset operational alert.
+    SystemAlertSummary: System-wide risk snapshot (used by dashboard header).
+    HotspotResponse: Ranked list of critical assets.
+    SimulationRequest: Payload for running custom rainfall scenarios.
+
+Relationship with other files:
+    - Imported by ALL routers in `src/api/routers/*.py` to define endpoint signatures.
+    - Matches the JSON outputs of the `src/engine/` modules (e.g., `AlertVerdict`
+      schema matches the dictionary returned by `alert_dispatcher.py`).
+
+Example Usage:
+    from src.api.schemas import AlertVerdict, AlertColor
+
+    # Create a validated alert verdict object
+    alert = AlertVerdict(
+        segment_id="SEG_142",
+        wse_m=222.1,
+        z_ballast_m=221.5,
+        p_failure_pct=65.3,
+        status=AlertColor.RED,
+        directive="EMERGENCY HALT"
+    )
+    # FastApi automatically serializes this to JSON in responses.
 """
 
 from __future__ import annotations

@@ -1,10 +1,46 @@
 """
-Engine Router — Trigger the 15-minute operational cycle or run simulations.
-===========================================================================
-Uses:
-  - src/engine/swi_calculator.py
-  - src/engine/fragility_curves.py
-  - src/engine/alert_dispatcher.py
+src/api/routers/engine.py — API Engine Router
+=================================================
+Provides POST endpoints to trigger the 15-minute operational cycle or to run
+in-memory custom rainfall simulations.
+
+Architecture Position (API Layer):
+    - EXPOSES: /api/v1/engine/cycle and /api/v1/engine/simulate
+    - USES:    src/engine/swi_calculator.py
+               src/engine/fragility_curves.py
+               src/engine/alert_dispatcher.py
+    - USED BY: Streamlit dashboard (simulation panel and cycle trigger)
+
+Endpoints:
+    - POST /api/v1/engine/cycle
+        → Triggers the full data pipeline: reads rainfall CSV, computes SWI,
+          saves results. (HEC-RAS trigger is currently blocked pending .prj availability).
+    - POST /api/v1/engine/simulate
+        → Accepts a custom hourly rainfall array (JSON payload), computes SWI and
+          runoff, and generates synthetic alerts for a representative corridor.
+          All computations are in-memory (does not overwrite `data/processed`).
+
+Relationship with other files:
+    UPSTREAM:
+      - Calls engine logic directly, bypassing file reads for simulations.
+    SCHEMAS:
+      - src/api/schemas.py (CycleRequest, CycleResult, SimulationRequest, SimulationResult)
+
+Example Usage (Client-side):
+    import requests
+
+    # 1. Trigger the operational cycle:
+    resp = requests.post("http://localhost:8000/api/v1/engine/cycle")
+    print(resp.json()["message"])
+
+    # 2. Run a custom simulation (e.g. 5 hours of 10mm/h rain):
+    payload = {
+        "rainfall_mm_h": [10.0, 10.0, 10.0, 10.0, 10.0],
+        "half_life_days": 10.0
+    }
+    resp = requests.post("http://localhost:8000/api/v1/engine/simulate", json=payload)
+    results = resp.json()
+    print(f"Peak SWI: {results['peak_swi_mm']}")
 """
 
 import logging

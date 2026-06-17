@@ -8,18 +8,26 @@ import pandas as pd
 from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
 
-# -------------------------------------------------------------------
-# Reusable GIS asset loader for the railway flood-risk digital twin MVP
-#
-# Save this file to:
-#   src/ingestion/load_gis_assets.py
-#
-# Create a file named .env in the project root with:
-#   DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/postgres
-#
-# Run from the project root:
-#   python src/ingestion/load_gis_assets.py
-# -------------------------------------------------------------------
+"""
+src/ingestion/load_gis_assets_dotenv.py — GIS Asset Loader (Layer 1 -> 2)
+=========================================================================
+Reusable GIS asset loader that extracts features from cleaned `.gpkg` files 
+in the staging directory and loads them into a PostGIS database (`rail.gis_asset`).
+
+Architecture Position (Ingestion / Data Prep):
+    - Transitions data from Layer 1 (Staging GIS files) to Layer 2 (Database).
+    - Requires a PostgreSQL database with PostGIS enabled.
+    - Uses `.env` for database credentials.
+
+Relationship with other files:
+    - Reads from `data/staging/gis/*.gpkg`.
+    - Database is defined in `.env` (`DATABASE_URL`).
+    - Uses `src.utils.paths` indirectly via `.env` loading.
+
+Example Usage:
+    # Ensure `.env` exists with DATABASE_URL=postgresql://user:pass@host:5432/db
+    python src/ingestion/load_gis_assets_dotenv.py
+"""
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 STAGING_GIS = PROJECT_ROOT / "data" / "staging" / "gis"

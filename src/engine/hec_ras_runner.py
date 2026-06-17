@@ -1,3 +1,62 @@
+"""
+src/engine/hec_ras_runner.py — HEC-RAS COM Controller (Layer 3: Simulation Engine)
+====================================================================================
+Provides a thin Python wrapper around the HEC-RAS 6.1 COM (Component Object Model)
+API to launch a 2D unsteady-flow hydraulic simulation from within the 15-minute
+operational cycle.
+
+Architecture Position (Layer 3 — Simulation Engine):
+    - TRIGGERED BY: src/api/routers/engine.py  (POST /api/v1/engine/cycle)
+    - READS:        model/hec_ras/FloodTwin.prj  (HEC-RAS project file)
+    - PRODUCES:     HEC-RAS HDF5 output files (read by hecras_bridge.py)
+    - SUPERSEDED BY: src/engine/hecras_bridge.py  (more complete, use that for HEC-RAS 6.7)
+
+Difference vs hecras_bridge.py:
+    ┌──────────────────────┬───────────────────────────────────────────────┐
+    │ hec_ras_runner.py    │ Simple: open → compute → close                │
+    │                      │ COM ProgID: RAS610.HECRASController           │
+    │                      │ Has built-in MOCK mode if win32com missing     │
+    ├──────────────────────┼───────────────────────────────────────────────┤
+    │ hecras_bridge.py     │ Full: connect → open → compute → extract WSE  │
+    │                      │ COM ProgID: RAS67.HECRASController             │
+    │                      │ Supports WSE extraction + JSON export          │
+    └──────────────────────┴───────────────────────────────────────────────┘
+
+Mock Mode (No HEC-RAS Installed):
+    If the `pywin32` package is missing or HEC-RAS is not installed, the class
+    runs in MOCK mode — it simulates a 2-second compute delay and returns True.
+    This allows the full API + dashboard to run without HEC-RAS for demonstration.
+
+Dependency:
+    pip install pywin32   (Windows only — required for COM integration)
+    HEC-RAS 6.1 must be installed and the project .prj file must exist.
+
+Relationship with other files:
+    UPSTREAM:
+      preprocessor.py    → provides hotspot segment list (tells which plan to run)
+      swi_calculator.py  → SWI > threshold triggers this runner
+    DOWNSTREAM:
+      hecras_bridge.py   → reads HEC-RAS output (WSE per cross-section)
+      fragility_curves.py → uses extracted water depth to compute P_failure
+
+Example Usage:
+    from src.engine.hec_ras_runner import HECRASController
+
+    # 1. Connect and run with real HEC-RAS (Windows, pywin32 installed):
+    ctrl = HECRASController(project_path="C:/model/FloodTwin.prj")
+    if ctrl.connect():
+        success = ctrl.run_simulation(plan_name="RealTime_Flood")
+        print("Simulation succeeded:", success)
+
+    # 2. Mock mode — works without HEC-RAS (demo/CI environment):
+    ctrl = HECRASController()   # project_path defaults from PROJECT_ROOT
+    ctrl.connect()              # prints WARNING: running in MOCK mode
+    ctrl.run_simulation()       # simulates 2s delay, returns True
+
+Run standalone to test the controller:
+    python src/engine/hec_ras_runner.py
+"""
+
 import os
 import sys
 import time

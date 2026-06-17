@@ -1,12 +1,42 @@
 """
-Alerts Router — RAMS-compliant risk verdicts and hotspot ranking.
-=================================================================
-Reads from:
-  - data/processed/z_config.json
-  - data/processed/hecras_wse_results.json
-Uses:
-  - src/engine/fragility_curves.py
-  - src/engine/alert_dispatcher.py
+src/api/routers/alerts.py — API Alerts Router
+=================================================
+Provides GET endpoints to retrieve RAMS-compliant risk verdicts and hotspot rankings
+for the railway network at a specific timestep.
+
+Architecture Position (API Layer):
+    - EXPOSES: /api/v1/alerts/current and /api/v1/alerts/hotspots
+    - READS:   data/processed/z_config.json (thresholds)
+               data/processed/hecras_wse_results.json (water surface elevations)
+    - USES:    src/engine/fragility_curves.py (computes P_failure on the fly)
+               src/engine/alert_dispatcher.py (generates RAMS verdicts)
+    - USED BY: Streamlit dashboard (to display traffic lights and top-N hotspots)
+
+Endpoints:
+    - GET /api/v1/alerts/current?timestep=T
+        → Returns a SystemAlertSummary containing the overall network status (GREEN/YELLOW/ORANGE/RED)
+          and a list of individual AlertVerdicts for every asset.
+    - GET /api/v1/alerts/hotspots?top_n=5&timestep=T
+        → Returns the top N most critical assets ranked by overtopping margin.
+
+Relationship with other files:
+    UPSTREAM:
+      - hecras_bridge.py → provides the WSE data
+    SCHEMAS:
+      - src/api/schemas.py (AlertVerdict, SystemAlertSummary, HotspotResponse)
+
+Example Usage (Client-side):
+    import requests
+
+    # 1. Get system status at hour 24:
+    resp = requests.get("http://localhost:8000/api/v1/alerts/current?timestep=24")
+    data = resp.json()
+    print(f"Overall status: {data['overall_status']}")
+    print(f"Red alerts: {data['red_count']}")
+
+    # 2. Get top 3 hotspots:
+    resp = requests.get("http://localhost:8000/api/v1/alerts/hotspots?top_n=3&timestep=24")
+    hotspots = resp.json()["hotspots"]
 """
 
 import json

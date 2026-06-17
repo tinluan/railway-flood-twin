@@ -1,3 +1,37 @@
+"""
+src/utils/paths.py — Centralized Path Manager
+=============================================
+Manages all project-wide filesystem paths for the Railway Flood-Risk Digital Twin.
+This is the successor to `src/paths.py` and supports overriding the data root
+via the `.env` file, enabling seamless switching between local storage and a
+remote shared drive (e.g., Google Drive).
+
+Architecture Position (Utilities):
+    - Used universally across data ingestion, transformation, API, and dashboard.
+    - Prevents hardcoded paths, ensuring code portability across Windows/Mac/Linux.
+
+Key Concept (DATA_ROOT):
+    The data directory can be enormous (>50GB with raw DTM/BIM files).
+    By default, it looks for `railway-flood-twin/data/`.
+    If `DATA_ROOT` is defined in `.env` (e.g., `G:/Shared drives/DigiTwin/data`),
+    it seamlessly redirects all data reads/writes there.
+
+Relationship with other files:
+    UPSTREAM: Reads `.env` for `DATA_ROOT`.
+    DOWNSTREAM: Used by `src/api/*`, `src/transform/*`, `src/dashboard/*`, etc.
+
+Example Usage:
+    from src.utils.paths import paths
+
+    # Access a subfolder safely:
+    dtm_path = paths.TERRAIN_STAGING / "dtm_fixed.tif"
+    if dtm_path.exists():
+        print("Found DTM!")
+
+    # Ensure output folders exist before writing:
+    paths.ensure_directories()
+    df.to_csv(paths.OUTPUTS / "results.csv")
+"""
 from pathlib import Path
 import os
 from dotenv import load_dotenv

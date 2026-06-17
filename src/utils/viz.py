@@ -1,3 +1,28 @@
+"""
+src/utils/viz.py — Academic Plotting Utilities
+==============================================
+Provides a standardized matplotlib/seaborn configuration for generating
+publication-quality, IEEE/ASCE style figures.
+
+Architecture Position (Utilities):
+    - Ensures all charts generated for the thesis/report have consistent
+      typography, professional color palettes, and high DPI.
+
+Relationship with other files:
+    - Used by `src/transform/generate_elevation_figure.py`
+    - Output figures are saved to `paths.REPORT_FIGURES`
+
+Example Usage:
+    import matplotlib.pyplot as plt
+    from src.utils.viz import set_academic_style, save_for_report
+
+    set_academic_style()
+    fig, ax = plt.subplots()
+    ax.plot([1, 2, 3], [4, 5, 6])
+    
+    # Automatically saves with 300 DPI to the report/figures folder
+    save_for_report(fig, "Fig02_MyPlot")
+"""
 import matplotlib.pyplot as plt
 import seaborn as sns
 

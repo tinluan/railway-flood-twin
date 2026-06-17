@@ -1,4 +1,70 @@
-"""Segment Voie_0 into ~100m sections with DTM elevation sampling."""
+"""
+src/engine/segment_voie.py — Track Segmentation & Elevation Enrichment (Layer 2: Bridge)
+==========================================================================================
+Segments the monolithic Voie_0 polygon (the entire tracked corridor) into individual
+~100 m sections, samples the DTM elevation at each segment centroid, and writes per-
+segment entries into both z_config.json and hecras_wse_results.json.
+
+This is a one-time data-preparation script (not called by the API or real-time cycle).
+It replaces the single "Voie_0" asset in the processed data files with a series of
+granular "Voie_seg_00", "Voie_seg_01", … entries for more accurate risk assessment.
+
+Architecture Position (Layer 2 — Bridge / Data Preparation):
+    - READS:   data/staging/gis/voie_fixed.gpkg        (track polygon, EPSG:2154)
+               data/staging/terrain/dtm_fixed.tif      (terrain elevation raster)
+               data/processed/z_config.json            (existing threshold config)
+               data/processed/hecras_wse_results.json  (existing WSE series)
+    - WRITES:  data/processed/z_config.json            (updated, Voie_0 removed)
+               data/processed/hecras_wse_results.json  (updated, segment entries added)
+               data/processed/voie_segments.json       (segment metadata for map)
+
+Segmentation Algorithm:
+    1. Load Voie polygon → extract exterior boundary → take the longer half as ref line
+    2. Divide ref line into N segments of ~100 m each (N = track_length / 100)
+    3. Sample DTM at centroid of each segment via windowed rasterio.read (memory safe)
+    4. Interpolate missing Z values from nearest valid neighbour
+    5. Reproject centroids from EPSG:2154 → EPSG:4326 for the map layer
+
+Elevation Thresholds per Segment (relative to DTM):
+    yellow_z = z_dtm - 2.0 m  (drainage at capacity)
+    orange_z = z_dtm - 0.5 m  (embankment soaked)
+    red_z    = z_dtm + 0.0 m  (track submerged)
+
+Segment JSON Output (voie_segments.json):
+    [
+      {"name": "Voie_seg_00", "asset_type": "Voie (Track)", "lat": 45.751,
+       "lon": 4.851, "z_dtm": 221.34, "segment_idx": 0},
+      {"name": "Voie_seg_01", ...},
+      ...
+    ]
+
+Relationship with other files:
+    DEPENDS ON:
+      data/staging/gis/voie_fixed.gpkg        → track geometry
+      data/staging/terrain/dtm_fixed.tif      → elevation raster
+      data/processed/hecras_wse_results.json  → WSE template (from Voie_0)
+      data/processed/z_config.json            → updated in-place
+    CONSUMED BY:
+      src/api/routers/assets.py  → reads voie_segments.json for map layer
+      src/api/routers/alerts.py  → reads z_config.json + hecras_wse_results.json
+      dashboard/app_main.py      → displays each segment on PyDeck map
+
+NOTE: This script runs as a standalone Python module (not importable) because it
+executes top-level code. Re-run whenever voie_fixed.gpkg or dtm_fixed.tif is updated.
+
+Example Usage:
+    # Run from project root to segment the track:
+    python src/engine/segment_voie.py
+
+    # Expected output (example for a 2.3 km track):
+    #   Track reference length: 2314m
+    #   Creating 23 segments
+    #   Voie_seg_00: Z=221.3m  lat=45.75100
+    #   ...
+    #   Saved 23 segments to z_config, wse_results, and voie_segments.json
+    #   Removed monolithic Voie_0 entry.
+"""
+
 import json
 import numpy as np
 import geopandas as gpd

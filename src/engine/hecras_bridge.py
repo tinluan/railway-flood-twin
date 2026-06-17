@@ -1,18 +1,84 @@
 """
-HEC-RAS Controller Bridge for Railway Flood-Risk Digital Twin
-=============================================================
+src/engine/hecras_bridge.py — HEC-RAS 6.7 Full Bridge (Layer 3: Simulation Engine)
+=====================================================================================
 Connects to HEC-RAS 6.7 via the COM (Component Object Model) interface.
-This module allows the Digital Twin Dashboard to:
+This is the *production-grade* bridge used by the Digital Twin Dashboard to:
   1. Open a HEC-RAS project file (.prj)
   2. Run a steady or unsteady flow computation
   3. Extract Water Surface Elevation (WSE) at specific cross-sections
-  4. Close cleanly without leaving zombie processes
+  4. Export results to JSON for dashboard / API consumption
+  5. Close cleanly without leaving zombie processes
 
-Dependencies: pywin32 (pip install pywin32)
-HEC-RAS Version: 6.7 Beta 5 (COM ProgID: RAS67.HECRASController)
+Architecture Position (Layer 3 — Simulation Engine):
+    - TRIGGERED BY: dashboard/app_main.py (Streamlit Run button)
+                    src/api/routers/engine.py (POST /api/v1/engine/cycle)
+    - READS:        model/hec_ras/FloodTwin.prj   (HEC-RAS 6.7 project)
+    - WRITES:       data/processed/hecras_wse_results.json  (via export_wse_to_json)
+    - FEEDS:        src/engine/fragility_curves.py  (water_depth = WSE - z_terrain)
+                    src/api/routers/alerts.py       (reads hecras_wse_results.json)
+
+Difference vs hec_ras_runner.py:
+    hec_ras_runner.py  → simple compute trigger, HEC-RAS 6.1, mock mode available
+    hecras_bridge.py   → full WSE extraction, HEC-RAS 6.7, no mock mode, production
+
+Dependency:
+    pip install pywin32          (Windows only — COM interface)
+    HEC-RAS 6.7 Beta 5 must be installed.
+    COM ProgID: RAS67.HECRASController
+
+WSE Output JSON Format (hecras_wse_results.json):
+    {
+      "station_1000": 222.145,   # Water Surface Elevation in metres NGF
+      "station_950":  221.890,
+      ...
+    }
+    → This is read by alerts.py to evaluate WSE vs. z_ballast per asset.
+
+Context Manager Support:
+    The class implements __enter__ / __exit__ for use with `with` statements,
+    ensuring COM resources are always released even if an exception occurs.
+
+Relationship with other files:
+    UPSTREAM:
+      hec_ras_runner.py → triggers the HEC-RAS compute (simpler trigger)
+      preprocessor.py   → z_ballast values (for WSE comparison)
+    DOWNSTREAM:
+      data/processed/hecras_wse_results.json → consumed by alerts.py router
+      fragility_curves.py → water_depth = WSE - base_z → P_failure
+      dashboard/app_main.py → displays WSE time series on map
 
 Authors: TRAN Trong-Tin, Amal, Szilvi
 Project: SNCF Railway Flood-Risk Digital Twin (Master Capstone)
+
+Example Usage:
+    from src.engine.hecras_bridge import HECRASBridge
+
+    # --- 1. Using as a context manager (recommended — auto-closes COM): ---
+    with HECRASBridge() as bridge:
+        bridge.open_project("C:/model/hec_ras/FloodTwin.prj")
+        bridge.compute_current_plan(wait=True)
+        wse_dict = bridge.get_wse_profile()
+        # wse_dict: {"station_1000": 222.145, "station_950": 221.89, ...}
+
+    # --- 2. Export WSE to JSON for dashboard / API: ---
+    with HECRASBridge() as bridge:
+        bridge.open_project("C:/model/hec_ras/FloodTwin.prj")
+        bridge.compute_current_plan()
+        bridge.export_wse_to_json(
+            output_path="data/processed/hecras_wse_results.json"
+        )
+        # → saves {station: wse_m} mapping for all cross-sections
+
+    # --- 3. Get HEC-RAS version string: ---
+    bridge = HECRASBridge()
+    print(bridge.get_version())  # e.g. "6.7 Beta 5"
+    bridge.close()
+
+    # --- 4. Extract stations on a specific river/reach: ---
+    with HECRASBridge() as bridge:
+        bridge.open_project("C:/model/hec_ras/FloodTwin.prj")
+        stations = bridge.get_river_stations("Rivière_X", "Reach_A")
+        # → ["1000", "950", "900", "850", ...]
 """
 
 import win32com.client

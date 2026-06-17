@@ -1,3 +1,31 @@
+"""
+src/utils/check_health.py — Environment & Data Link Diagnostics
+===============================================================
+Performs a comprehensive diagnostic check on the project infrastructure.
+Validates the presence of the `.env` file, required environment variables,
+Python virtual environment, Google Drive shared data connection, and
+the freshness of database backups.
+
+Architecture Position (Utilities):
+    - Intended to be run manually by developers when onboarding or troubleshooting.
+    - Implements "Rule 1: Safety & Backups" from the Antigravity Protocol.
+
+Relationship with other files:
+    - Uses `src.utils.paths.paths` to locate critical directories.
+    - Reads `.env` to verify `DATABASE_URL` and `DATA_ROOT`.
+
+Example Usage:
+    # Run from the terminal to verify your setup:
+    python src/utils/check_health.py
+
+    # Expected Output:
+    # --- Project Health Check ---
+    # [1/4] Environment Config: [OK]
+    # [2/4] Python Environment: [OK]
+    # [3/4] Shared Data Connection: [OK]
+    # [4/4] Database Backup Status: [OK]
+    # SUCCESS Project is HEALTHY and ready for analysis.
+"""
 import sys
 from pathlib import Path
 import os

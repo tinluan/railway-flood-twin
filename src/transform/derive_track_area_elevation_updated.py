@@ -7,21 +7,24 @@ import rasterio
 from rasterio.mask import mask
 from src.utils.paths import paths
 
-# -------------------------------------------------------------------
-# Updated terrain summary script for track_area polygons
-#
-# Save this file to:
-#   src/transform/derive_track_area_elevation.py
-#
-# Run from the project root:
-#   python src/transform/derive_track_area_elevation.py
-#
-# Main improvements in this version:
-# - uses a fixed working GeoTIFF from data/staging/terrain/
-# - no automatic picking of the wrong .asc copy
-# - prints progress for each feature
-# - safer CRS handling for the cleaned voie layer
-# -------------------------------------------------------------------
+"""
+src/transform/derive_track_area_elevation_updated.py — Track Elevation
+======================================================================
+Updated terrain summary script specifically for the monolithic `voie` (track_area) polygon.
+Derives min, max, and mean elevation by clipping the DTM against the track.
+
+Architecture Position (Layer 2 — Data Prep / Transformation):
+    - Similar to `derive_all_assets_elevation.py`, but tailored for the track area,
+      handling CRS alignment explicitly and enriching the track GeoPackage.
+
+Relationship with other files:
+    - Reads: `data/staging/terrain/dtm_fixed.tif` and `data/staging/gis/voie_fixed.gpkg`
+    - Writes: `data/processed/terrain/track_area_elevation_summary.csv`
+    - Writes: `data/processed/terrain/voie_with_elevation.gpkg`
+
+Example Usage:
+    python src/transform/derive_track_area_elevation_updated.py
+"""
 
 # -------------------------------------------------------------------
 # CONFIGURATION

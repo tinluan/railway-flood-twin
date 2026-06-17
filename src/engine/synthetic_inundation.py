@@ -1,19 +1,45 @@
 """
-Synthetic 2D Inundation Map Generator (Bathtub Model)
-=====================================================
-Generates time-varying flood extent polygons based on the WSE from
-hecras_wse_results.json and the railway corridor geometry.
+src/engine/synthetic_inundation.py — Synthetic Flood Map Generator (Bathtub Model)
+====================================================================================
+Generates time-varying flood extent polygons based on the WSE (Water Surface Elevation)
+from `hecras_wse_results.json` and the railway corridor geometry.
 
-For the DEMO MODE: Since the full DTM (~1GB) may not be locally available,
-this script uses a corridor-based buffer approach around the track and
-low-lying assets to create realistic-looking flood polygons at each timestep.
+For the DEMO MODE: Since the full HEC-RAS 2D output (and a 1GB DTM) may not be
+locally available in all environments, this script uses a corridor-based buffer
+approach around the track and low-lying assets to create realistic-looking flood
+polygons at each timestep (the "bathtub" model).
 
-When the real HEC-RAS 2D output is available, replace this with actual
-RAS Mapper flood boundary shapefiles.
+Architecture Position (Layer 3 — Simulation Engine / Visualization Prep):
+    - READS:   data/processed/hecras_wse_results.json
+               data/staging/gis/voie_fixed.gpkg (and other asset geometries)
+    - WRITES:  data/processed/synthetic_flood_timesteps.json
+    - FEEDS:   src/api/routers/hydrology.py (GET /api/v1/flood-polygons/{timestep})
+    - FEEDS:   dashboard/app_main.py (Animated PyDeck map layer)
 
-Output: data/processed/synthetic_flood_timesteps.json
-  A JSON file containing 48 GeoJSON FeatureCollections (one per hour),
-  keyed by timestep index ("0", "1", ..., "47").
+Output Format (synthetic_flood_timesteps.json):
+    A JSON dictionary containing 48 GeoJSON FeatureCollections (one per hour),
+    keyed by timestep index ("0", "1", ..., "47"). Each feature contains properties:
+      - wse_m: Water Surface Elevation (m NGF)
+      - intensity: Fractional flood intensity (0.0 to 1.0)
+
+When the real HEC-RAS 2D output is fully available in production, this module
+should be replaced with actual RAS Mapper flood boundary shapefiles extraction.
+
+Relationship with other files:
+    UPSTREAM:
+      hecras_bridge.py / preprocessor.py → generates the WSE results.
+    DOWNSTREAM:
+      hydrology.py router → serves these polygons to the frontend.
+
+Example Usage:
+    from src.engine.synthetic_inundation import generate_time_varying_flood
+
+    # Generate the 48-hour synthetic flood sequence:
+    out_path = generate_time_varying_flood()
+    print(f"Flood polygons generated at: {out_path}")
+
+    # To run standalone:
+    # python src/engine/synthetic_inundation.py
 """
 
 import json

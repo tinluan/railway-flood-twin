@@ -3,13 +3,23 @@ import geopandas as gpd
 import rasterio
 from datetime import datetime
 
-# -------------------------------------------------------------------
-# Project paths
-# This script is intended to be saved at:
-#   railway-flood-twin/src/transform/generate_docs_from_staging.py
-# and run from the project root with:
-#   python src/transform/generate_docs_from_staging.py
-# -------------------------------------------------------------------
+"""
+src/transform/generate_docs_from_staging.py — Data Dictionary Generator
+=======================================================================
+Automatically generates Markdown documentation (Data Inventory, Source-to-Table Mapping,
+CRS Strategy) by inspecting the cleaned GIS layers in the staging directory.
+
+Architecture Position (Utilities / Governance):
+    - Enforces transparency and data lineage tracking.
+    - Keeps documentation in sync with actual file contents.
+
+Relationship with other files:
+    - Reads: `data/staging/gis/*.gpkg` and `data/raw/dtm/*.asc`
+    - Writes: `docs/data_inventory.md`, `docs/source_to_table_mapping.md`, `docs/crs_strategy.md`
+
+Example Usage:
+    python src/transform/generate_docs_from_staging.py
+"""
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DOCS_DIR = PROJECT_ROOT / "docs"
 STAGING_GIS = PROJECT_ROOT / "data" / "staging" / "gis"

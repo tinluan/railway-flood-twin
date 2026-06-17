@@ -1,10 +1,38 @@
 """
-Assets Router — GET endpoints for asset configuration and cross-sections.
-=========================================================================
-Reads from:
-  - data/processed/z_config.json         (asset thresholds)
-  - data/processed/voie_segments.json    (Voie segment metadata)
-  - data/processed/cross_sections.json   (DTM terrain profiles)
+src/api/routers/assets.py — API Assets Router
+=================================================
+Provides GET endpoints to retrieve railway infrastructure asset metadata,
+RAMS Z-thresholds, and 60m East-West DTM terrain profiles.
+
+Architecture Position (API Layer):
+    - EXPOSES: /api/v1/assets and /api/v1/cross-sections
+    - READS:   data/processed/z_config.json         (asset thresholds)
+               data/processed/voie_segments.json    (Voie segment metadata)
+               data/processed/cross_sections.json   (DTM terrain profiles)
+    - USED BY: Streamlit dashboard (to draw maps and asset lists)
+
+Endpoints:
+    - GET /api/v1/assets               → List all assets and their thresholds
+    - GET /api/v1/assets/{id}          → Get full details for one asset
+    - GET /api/v1/cross-sections/{id}  → Get the 60m elevation profile
+
+Relationship with other files:
+    UPSTREAM:
+      - segment_voie.py → populates z_config.json with granular track segments
+      - extract_cross_sections.py → creates the cross_sections.json
+    SCHEMAS:
+      - src/api/schemas.py (AssetSummary, AssetDetail, CrossSectionResponse)
+
+Example Usage (Client-side):
+    import requests
+
+    # 1. Fetch all bridges:
+    resp = requests.get("http://localhost:8000/api/v1/assets?asset_type=Pont Rail")
+    bridges = resp.json()
+
+    # 2. Fetch the terrain profile for a specific bridge:
+    resp = requests.get("http://localhost:8000/api/v1/cross-sections/Pont_0")
+    profile = resp.json()["profile"]
 """
 
 import json

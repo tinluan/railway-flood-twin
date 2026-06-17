@@ -1,18 +1,45 @@
 """
-Railway Flood-Risk Digital Twin — REST API
-==========================================
-FastAPI application entry-point.
+src/api/main.py — FastAPI Application Entry-Point
+=================================================
+The central REST API server for the Railway Flood-Risk Digital Twin.
+It exposes infrastructure asset data, real-time RAMS risk verdicts,
+hydrological SWI computations, and synthetic flood inundation maps.
 
-Start with:
-    .conda\\python.exe -m uvicorn src.api.main:app --reload --port 8000
+Architecture Position (API Layer):
+    - Integrates the core engine (Layer 2 & 3) with frontends.
+    - Serves data to `src/dashboard/app_main.py` (Streamlit) or Next.js/Vite.
+    - Routes are split into domain-specific modules in `src/api/routers/`.
 
-Swagger docs will be available at:  http://localhost:8000/docs
-ReDoc at:                           http://localhost:8000/redoc
+Included Routers:
+    - /api/v1/assets    → Asset metadata and cross-sections (`routers/assets.py`)
+    - /api/v1/alerts    → RAMS risk verdicts and hotspots (`routers/alerts.py`)
+    - /api/v1/hydrology → SWI results and flood polygons (`routers/hydrology.py`)
+    - /api/v1/engine    → Trigger simulation cycles (`routers/engine.py`)
+
+CORS Configuration:
+    Pre-configured to allow connections from local Streamlit (8501),
+    React/Next.js (3000), and Vite (5173).
+
+Relationship with other files:
+    IMPORTS: src/api/routers/* (all endpoints)
+    SERVES:  dashboard/app_main.py (makes HTTP requests to this API)
+
+Example Usage:
+    # Start the server with uvicorn (from the project root):
+    python -m uvicorn src.api.main:app --reload --port 8000
+
+    # Or if using the conda python:
+    .conda/python.exe -m uvicorn src.api.main:app --reload --port 8000
+
+    # API Documentation will be available at:
+    #   Swagger UI: http://localhost:8000/docs
+    #   ReDoc:      http://localhost:8000/redoc
 """
 
 import logging
 from contextlib import asynccontextmanager
 
+# pyrefly: ignore [missing-import]
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 

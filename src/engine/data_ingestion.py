@@ -1,3 +1,47 @@
+"""
+src/engine/data_ingestion.py — Rainfall Ingestor (Layer 2: Bridge)
+===================================================================
+Handles the first step of the 15-minute operational cycle:
+fetching or simulating rainfall intensity data for the railway corridor.
+
+Architecture Position (Layer 2 — Bridge):
+    - Produces: data/raw/rainfall_Ligne_400.csv
+    - Consumed by: ``src/engine/swi_calculator.py`` (SWI calculation)
+    - Orchestrated by: ``src/api/routers/engine.py`` (POST /api/v1/engine/cycle)
+
+Class: RainfallIngestor
+    Dual-mode class:
+      1. Live mode  — ``fetch_live_data()``   → calls Météo-France / OpenWeatherMap API
+      2. Demo mode  — ``generate_demo_scenario()`` → synthetic 48-hour flash-flood event
+
+Output File (data/raw/rainfall_Ligne_400.csv):
+    | Column          | Type   | Description                  |
+    |-----------------|--------|------------------------------|
+    | timestamp       | str    | ISO datetime of observation  |
+    | intensity_mm_h  | float  | Rainfall rate (mm per hour)  |
+    | source          | str    | "DEMO_SCENARIO" or "API_LIVE"|
+
+Database / File Relationship:
+    READS:   nothing (source of truth for raw rainfall)
+    WRITES:  data/raw/rainfall_<corridor_id>.csv
+    NEXT:    src/engine/swi_calculator.py reads that CSV to compute SWI
+
+Example Usage:
+    # 1. Generate a synthetic high-intensity flash-flood for demonstration:
+    from src.engine.data_ingestion import RainfallIngestor
+    ingestor = RainfallIngestor(corridor_id="Ligne_400")
+    df = ingestor.generate_demo_scenario(intensity="high")
+    # df has 48 rows with random 25-45 mm/h peak between hours 18-30.
+
+    # 2. Fetch live data (stub — replace body with real API call):
+    live = ingestor.fetch_live_data()
+    # Returns: {"timestamp": datetime.now(), "intensity": 1.5, "source": "API_LIVE"}
+
+    # 3. Run from terminal to seed raw data:
+    #    python src/engine/data_ingestion.py
+    #    → Saves: data/raw/rainfall_Ligne_400.csv
+"""
+
 import os
 import pandas as pd
 from datetime import datetime, timedelta

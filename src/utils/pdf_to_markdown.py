@@ -1,7 +1,22 @@
 """
-pdf_to_markdown.py
-Converts a scientific PDF to a structured Markdown file for use with GitHub Copilot.
-Usage: python src/utils/pdf_to_markdown.py <pdf_path> <output_md_path>
+src/utils/pdf_to_markdown.py — PDF Text Extractor for LLMs
+==========================================================
+Converts scientific PDFs (e.g., academic papers, manuals) into structured
+Markdown files. This is particularly useful for feeding documentation into
+GitHub Copilot, Gemini, or other LLMs for context generation.
+
+It strips excessive whitespace, preserves paragraphs, and adds page headers.
+
+Dependency:
+    pip install pymupdf  (provides the `fitz` module)
+
+Relationship with other files:
+    - Independent utility.
+    - Outputs are typically saved to `data/references/markdown/`.
+
+Example Usage:
+    # Convert a reference PDF to Markdown:
+    python src/utils/pdf_to_markdown.py data/references/hec_ras_manual.pdf data/references/markdown/hec_ras_manual.md
 """
 import sys
 import fitz  # PyMuPDF

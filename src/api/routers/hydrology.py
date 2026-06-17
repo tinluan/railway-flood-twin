@@ -1,9 +1,41 @@
 """
-Hydrology Router — SWI results and synthetic flood polygons.
-============================================================
-Reads from:
-  - data/processed/swi_results.csv
-  - data/processed/synthetic_flood_timesteps.json
+src/api/routers/hydrology.py — API Hydrology Router
+=======================================================
+Provides GET endpoints to retrieve SWI (Soil Water Index) time-series results
+and synthetic flood polygon geometries (GeoJSON).
+
+Architecture Position (API Layer):
+    - EXPOSES: /api/v1/hydrology/swi, /api/v1/flood-polygons, /api/v1/flood-polygons/{timestep}
+    - READS:   data/processed/swi_results.csv
+               data/processed/synthetic_flood_timesteps.json
+    - USED BY: Streamlit dashboard (SWI charts and animated maps)
+
+Endpoints:
+    - GET /api/v1/hydrology/swi
+        → Returns the hourly rainfall, SWI, and runoff coefficient time-series.
+          Supports ?start_hour and ?end_hour query parameters for slicing.
+    - GET /api/v1/flood-polygons
+        → Returns metadata about available timesteps (e.g., total count, range).
+    - GET /api/v1/flood-polygons/{timestep}
+        → Returns a GeoJSON FeatureCollection of flood extents for that hour.
+
+Relationship with other files:
+    UPSTREAM:
+      - swi_calculator.py → generates swi_results.csv
+      - synthetic_inundation.py → generates synthetic_flood_timesteps.json
+    SCHEMAS:
+      - src/api/schemas.py (SWIResponse, FloodPolygonResponse)
+
+Example Usage (Client-side):
+    import requests
+
+    # 1. Fetch SWI results for hours 10 to 20:
+    resp = requests.get("http://localhost:8000/api/v1/hydrology/swi?start_hour=10&end_hour=20")
+    swi_data = resp.json()["records"]
+
+    # 2. Fetch the flood polygon for hour 24:
+    resp = requests.get("http://localhost:8000/api/v1/flood-polygons/24")
+    geojson = resp.json()["geojson"]
 """
 
 import json

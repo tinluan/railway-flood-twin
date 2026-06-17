@@ -6,18 +6,30 @@ import rasterio
 from rasterio.mask import mask
 from src.utils.paths import paths
 
-# -------------------------------------------------------------------
-# General Terrain Summary Script: All Railway Assets
-# -------------------------------------------------------------------
-# This script derives min, max, and mean elevation for every feature 
-# in every GIS asset layer.
-#
-# Logic:
-# 1. Finds the DTM (dtm_fixed.tif)
-# 2. Loops through all .gpkg files in data/staging/gis/
-# 3. Clips the DTM to each asset's footprint (Polygon/MultiPolygon).
-# 4. Exports a single consolidated summary for the Digital Twin.
-# -------------------------------------------------------------------
+"""
+src/transform/derive_all_assets_elevation.py — Terrain Extraction
+=================================================================
+Derives min, max, and mean elevation for every feature in every GIS asset layer.
+
+Architecture Position (Layer 2 — Data Prep / Transformation):
+    - Extracts meaningful numerical values (Z-elevation) from the 1GB DTM raster
+      for every bridge, culvert, track segment, etc.
+    - Used to define baseline elevations (`base_z_m`) for vulnerability calculations.
+
+Logic:
+    1. Finds the fixed DTM (`dtm_fixed.tif`).
+    2. Loops through all `.gpkg` files in `data/staging/gis/`.
+    3. Clips the DTM to each asset's footprint (Polygon/MultiPolygon).
+    4. Exports a single consolidated summary for the Digital Twin.
+
+Relationship with other files:
+    - Reads: `data/staging/terrain/dtm_fixed.tif` and `data/staging/gis/*.gpkg`
+    - Writes: `data/processed/terrain/all_assets_elevation_summary.csv`
+    - Writes: `report/tables/Table01_Asset_Elevation_Summary.csv`
+
+Example Usage:
+    python src/transform/derive_all_assets_elevation.py
+"""
 
 # Preferred fixed DTM file
 FIXED_DTM_FILE = paths.TERRAIN_STAGING / "dtm_fixed.tif"
