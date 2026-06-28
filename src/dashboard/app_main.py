@@ -2,13 +2,15 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import os
 import sys
 import json
+import time
 
 # Add project root to path for imports
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from paths import RAW_DATA, PROCESSED_DATA
+from src.utils.paths import paths
 
 st.set_page_config(page_title="RailTwin Flood | SNCF Standard", layout="wide")
 
@@ -17,7 +19,7 @@ st.set_page_config(page_title="RailTwin Flood | SNCF Standard", layout="wide")
 # ============================================================
 @st.cache_data
 def load_rainfall():
-    rain_file = RAW_DATA / "rainfall_Ligne_400.csv"
+    rain_file = paths.RAW / "rainfall_Ligne_400.csv"
     if rain_file.exists():
         df = pd.read_csv(rain_file, parse_dates=["timestamp"])
         return df
@@ -25,7 +27,7 @@ def load_rainfall():
 
 @st.cache_data
 def load_swi():
-    swi_file = PROCESSED_DATA / "swi_results.csv"
+    swi_file = paths.PROCESSED / "swi_results.csv"
     if swi_file.exists():
         df = pd.read_csv(swi_file, parse_dates=["timestamp"])
         return df
@@ -36,7 +38,7 @@ def load_assets():
     import geopandas as gpd
     import warnings
     warnings.filterwarnings('ignore')
-    GIS_PATH = RAW_DATA.parent / "staging" / "gis"
+    GIS_PATH = paths.RAW.parent / "staging" / "gis"
     records = []
     configs = [
         ("Pont Rail (Bridge)",          GIS_PATH / "Pont Rail_fixed.gpkg", "Pont Rail"),
@@ -53,7 +55,6 @@ def load_assets():
         gdf = gpd.read_file(path).to_crs("EPSG:4326")
         for idx, row in gdf.iterrows():
             pt = row.geometry.centroid
-            # Always use standardized base_id to avoid French accent mismatches
             std_name = f"{base_id}_{idx}"
             records.append({
                 "asset_type": asset_type_label,
@@ -69,7 +70,7 @@ def load_infra_layers():
     import json
     import warnings
     warnings.filterwarnings('ignore')
-    GIS_PATH = RAW_DATA.parent / "staging" / "gis"
+    GIS_PATH = paths.RAW.parent / "staging" / "gis"
     results = []
     infra_configs = [
         ("Voie (Track)",              GIS_PATH / "voie_fixed.gpkg",                        [220, 30,  30,  220], 4),
@@ -83,7 +84,6 @@ def load_infra_layers():
             continue
         try:
             gdf = gpd.read_file(path).to_crs("EPSG:4326")
-            # Use to_json() + json.loads() for proper GeoJSON serialization
             geojson_str = gdf.to_json()
             geojson_dict = json.loads(geojson_str)
             results.append({
@@ -97,7 +97,7 @@ def load_infra_layers():
 
 @st.cache_data
 def load_cross_sections():
-    cs_file = PROCESSED_DATA / "cross_sections.json"
+    cs_file = paths.PROCESSED / "cross_sections.json"
     if cs_file.exists():
         with open(cs_file, "r") as f:
             return json.load(f)
@@ -105,21 +105,110 @@ def load_cross_sections():
 
 @st.cache_data
 def load_z_config():
-    z_file = PROCESSED_DATA / "z_config.json"
+    z_file = paths.PROCESSED / "z_config.json"
     if z_file.exists():
         with open(z_file, "r") as f:
             return json.load(f)
     return {}
 
+def get_active_hydrology_data(selected_plan, is_real_hecras, hecras_timestamps, n_steps, df_swi_base):
+    """Generates or loads the active rainfall and SWI DataFrame based on selection."""
+    if is_real_hecras and "P02" in selected_plan:
+        # Historical Showcase (Sept 2025 Cevenol storm)
+        p02_hourly_rain = [0.0, 0.1, 0.8, 0.0, 0.3, 1.4, 6.7, 15.1, 5.8, 6.3,
+                            4.3, 2.8, 1.0, 2.3, 9.8, 3.0, 3.7, 1.9, 1.6, 3.9,
+                            2.5, 0.5]
+        records = []
+        import datetime
+        try:
+            start_dt = datetime.datetime.strptime(hecras_timestamps[0], "%d%b%Y %H:%M:%S")
+        except Exception:
+            start_dt = datetime.datetime(2025, 9, 21, 7, 0)
+            
+        T = 240.0
+        C = 0.5 ** ((10/60) / T) # 10-minute interval
+        swi_val = 0.0
+        
+        C_min = 0.1
+        C_max = 0.9
+        k = 0.05
+        SWI_mid = 150.0
+        
+        for idx, ts_str in enumerate(hecras_timestamps):
+            try:
+                dt = datetime.datetime.strptime(ts_str, "%d%b%Y %H:%M:%S")
+            except Exception:
+                dt = start_dt + datetime.timedelta(minutes=10*idx)
+            
+            hours_elapsed = (dt - start_dt).total_seconds() / 3600.0
+            hour_idx = int(hours_elapsed)
+            intensity = p02_hourly_rain[hour_idx] if hour_idx < len(p02_hourly_rain) else 0.0
+            
+            swi_val = (intensity * (10/60.0)) + swi_val * C
+            runoff_coeff = C_min + (C_max - C_min) / (1 + np.exp(-k * (swi_val - SWI_mid)))
+            active_runoff = intensity * runoff_coeff
+            
+            records.append({
+                "timestamp": dt,
+                "intensity_mm_h": intensity,
+                "swi_mm": swi_val,
+                "runoff_coeff": runoff_coeff,
+                "active_runoff_mm": active_runoff
+            })
+        return pd.DataFrame(records)
+        
+    elif is_real_hecras and "P01" in selected_plan:
+        # Design Storm (100mm/1h)
+        records = []
+        import datetime
+        try:
+            start_dt = datetime.datetime.strptime(hecras_timestamps[0], "%d%b%Y %H:%M:%S")
+        except Exception:
+            start_dt = datetime.datetime(2026, 3, 30, 13, 0)
+            
+        T = 240.0
+        C = 0.5 ** ((5/60) / T) # 5-minute interval
+        swi_val = 0.0
+        
+        C_min = 0.1
+        C_max = 0.9
+        k = 0.05
+        SWI_mid = 150.0
+        
+        for idx, ts_str in enumerate(hecras_timestamps):
+            try:
+                dt = datetime.datetime.strptime(ts_str, "%d%b%Y %H:%M:%S")
+            except Exception:
+                dt = start_dt + datetime.timedelta(minutes=5*idx)
+            
+            hours_elapsed = (dt - start_dt).total_seconds() / 3600.0
+            intensity = 100.0 if hours_elapsed <= 1.0 else 0.0
+            
+            swi_val = (intensity * (5/60.0)) + swi_val * C
+            runoff_coeff = C_min + (C_max - C_min) / (1 + np.exp(-k * (swi_val - SWI_mid)))
+            active_runoff = intensity * runoff_coeff
+            
+            records.append({
+                "timestamp": dt,
+                "intensity_mm_h": intensity,
+                "swi_mm": swi_val,
+                "runoff_coeff": runoff_coeff,
+                "active_runoff_mm": active_runoff
+            })
+        return pd.DataFrame(records)
+        
+    else:
+        return df_swi_base
+
 df_rain   = load_rainfall()
-df_swi    = load_swi()
+df_swi_base = load_swi()
 cs_data   = load_cross_sections()
 all_assets = load_assets()
 infra_data = load_infra_layers()
 z_config  = load_z_config()
 
 # --- Replace monolithic Voie_0 with segmented track sections ---
-voie_seg_file = PROCESSED_DATA / "voie_segments.json"
+voie_seg_file = paths.PROCESSED / "voie_segments.json"
 if voie_seg_file.exists():
     with open(voie_seg_file, "r") as f:
         voie_segments = json.load(f)
@@ -130,8 +219,16 @@ if voie_seg_file.exists():
     all_assets = pd.concat([all_assets, seg_rows], ignore_index=True)
 
 @st.cache_data
-def load_wse_results():
-    wse_file = PROCESSED_DATA / "hecras_wse_results.json"
+def load_wse_results(plan_key="synthetic"):
+    """Load WSE results for the selected HEC-RAS plan.
+    Plans: 'synthetic' (48h), 'p01' (R100_1HR, 13 steps), 'p02' (21092025, 127 steps)
+    """
+    plan_files = {
+        "synthetic": paths.PROCESSED / "hecras_wse_results.json",
+        "P01: R100_1HR (100mm rainfall storm, 1h)": paths.PROCESSED / "hecras_wse_p01_dashboard.json",
+        "P02: 21SEP2025 (Historical event, 21h)": paths.PROCESSED / "hecras_wse_p02_dashboard.json",
+    }
+    wse_file = plan_files.get(plan_key, plan_files["synthetic"])
     if wse_file.exists():
         with open(wse_file, "r") as f:
             return json.load(f)
@@ -139,24 +236,77 @@ def load_wse_results():
 
 @st.cache_data
 def load_flood_timesteps():
-    flood_file = PROCESSED_DATA / "synthetic_flood_timesteps.json"
+    flood_file = paths.PROCESSED / "synthetic_flood_timesteps.json"
     if flood_file.exists():
         with open(flood_file, "r") as f:
             return json.load(f)
     return {}
 
-wse_results = load_wse_results()
 flood_timesteps = load_flood_timesteps()
 
 # ============================================================
 # TITLE & SIDEBAR
 # ============================================================
 st.title("RailTwin Flood: Digital Twin Decision Support")
-st.markdown("**SNCF Professional Standard** - Forecast Simulation Mode")
+st.markdown("**SNCF Professional Standard** - Forecast Simulation Mode | HEC-RAS 2D Integration")
 
 st.sidebar.header("Control Panel")
-mode = st.sidebar.selectbox("Mode", ["Forecast Simulation", "Live Monitoring", "PLM26 Contest Demo"])
-corridor = st.sidebar.selectbox("Corridor", ["Ligne_400 (Cevenol Corridor, France)"])
+corridor = st.sidebar.selectbox("Corridor", ["L752 PK534 (South Head Tartaiguille, LGV)"])
+
+# ============================================================
+# F1: DUAL-MODE DASHBOARD (Live Monitoring vs Historical Showcase)
+# ============================================================
+st.sidebar.divider()
+st.sidebar.subheader("Operational Mode")
+app_mode = st.sidebar.radio(
+    "Select Mode",
+    options=["🔴 Historical Showcase (Sept 2025)", "🟢 Live Monitoring"],
+    index=0,
+    help="Switch between the historical Cevenol storm showcase and real-time weather monitoring."
+)
+
+if app_mode == "🔴 Historical Showcase (Sept 2025)":
+    # --- Showcase Mode: Lock to Plan 2 (Historical Sept 2025 event) ---
+    st.sidebar.info("Showcasing the September 21, 2025 Cevenol flood event (Plan 2: 21h, 127 timesteps).")
+    selected_plan = "P02: 21SEP2025 (Historical event, 21h)"
+    is_real_hecras = True
+    data_source = "Demo (48h Cevenol)"  # Use demo rainfall data for SWI context
+else:
+    # --- Live Mode: Full control panel ---
+    st.sidebar.success("Monitoring live meteorological updates.")
+    data_source = st.sidebar.radio(
+        "Rainfall Source",
+        options=["Demo (48h Cevenol)", "Live Forecast (Open-Meteo)"],
+        index=0,
+        help="Demo uses a static 48h flash flood scenario. Live uses real forecast data."
+    )
+
+    if st.sidebar.button("🔄 Fetch & Recompute Cycle"):
+        with st.spinner("Running 15-min Operational Cycle (Forced HEC-RAS)..."):
+            from src.engine.pipeline_orchestrator import PipelineOrchestrator
+            orc = PipelineOrchestrator()
+            source_mode = "live" if "Live" in data_source else "demo"
+            result = orc.run_cycle(source_mode=source_mode, force_hecras=True)
+            st.cache_data.clear()
+            st.sidebar.success(f"Cycle completed! Peak SWI: {result['peak_swi_mm']} mm")
+            time.sleep(1)
+            st.rerun()
+
+    st.sidebar.divider()
+    st.sidebar.subheader("HEC-RAS Scenario")
+    hecras_plan_options = [
+        "P02: 21SEP2025 (Historical event, 21h)",
+        "P01: R100_1HR (100mm rainfall storm, 1h)",
+        "synthetic",
+    ]
+    selected_plan = st.sidebar.selectbox(
+        "Simulation Plan",
+        hecras_plan_options,
+        help="Select a pre-computed HEC-RAS plan. P02 is the historical event, P01 is the 100mm/1h design storm."
+    )
+    is_real_hecras = selected_plan != "synthetic"
+
+wse_results = load_wse_results(selected_plan)
 
 # --- Asset Filter ---
 ALL_ASSET_TYPES = [
@@ -172,20 +322,62 @@ asset_types = st.sidebar.multiselect(
 )
 
 # ============================================================
-# TIME SLIDER (The Core Feature)
+# TIME SLIDER & PLAY BUTTON (F2: Automatic Timeline Animation)
 # ============================================================
-n_steps = len(df_rain) if len(df_rain) > 0 else 48
+# Determine timestep count from WSE data source
+if is_real_hecras and wse_results:
+    # Get timestep count from first asset's WSE series
+    first_asset = next(iter(wse_results.values()), {})
+    n_steps = len(first_asset.get("wse_m", []))
+    hecras_timestamps = first_asset.get("timestamps", [])
+else:
+    n_steps = len(df_rain) if len(df_rain) > 0 else 48
+    hecras_timestamps = []
+
+# --- Dynamic Hydrology Data Routing ---
+df_swi = get_active_hydrology_data(selected_plan, is_real_hecras, hecras_timestamps, n_steps, df_swi_base)
+df_rain = df_swi
+n_steps = len(df_swi)
 
 st.sidebar.divider()
 st.sidebar.subheader("Forecast Timeline")
-t_idx = st.sidebar.slider(
-    "Drag to explore forecast",
-    min_value=0,
-    max_value=n_steps - 1,
-    value=n_steps - 1,
-    format="T+%dh",
-    help="Drag this slider to see the predicted state of your railway at each hour."
+
+# --- Play / Pause Animation Controls ---
+col_play, col_speed = st.sidebar.columns([1, 1])
+with col_play:
+    is_playing = st.toggle("▶ Play", value=False)
+    loop_animation = st.checkbox("Loop", value=False)
+with col_speed:
+    animation_speed_ms = st.select_slider(
+        "Speed",
+        options=[200, 500, 1000, 2000],
+        value=500,
+        format_func=lambda x: f"{x}ms",
+    )
+
+if "timeline_idx" not in st.session_state:
+    st.session_state["timeline_idx"] = 0
+
+if is_real_hecras and hecras_timestamps:
+    options = hecras_timestamps
+else:
+    options = [f"T+{i}h" for i in range(n_steps)]
+
+# Ensure state is within bounds when switching plans
+if st.session_state["timeline_idx"] >= n_steps:
+    st.session_state["timeline_idx"] = max(n_steps - 1, 0)
+
+selected_time = st.sidebar.select_slider(
+    "Forecast Timeline",
+    options=options,
+    value=options[st.session_state["timeline_idx"]],
+    help="Drag this slider to see the predicted state of your railway at each timestep."
 )
+
+# Sync the index back
+t_idx = options.index(selected_time)
+if t_idx != st.session_state["timeline_idx"]:
+    st.session_state["timeline_idx"] = t_idx
 
 # --- Compute current state at time t_idx ---
 if len(df_swi) > 0 and t_idx < len(df_swi):
@@ -430,19 +622,21 @@ with col1:
     # ============================================================
     fig = go.Figure()
 
-    if len(df_rain) > 0 and selected_asset:
-        timestamps = [str(t) for t in df_rain['timestamp']]
+    if len(df_swi) > 0 and selected_asset:
+        timestamps = [str(t) for t in df_swi['timestamp']]
 
         # --- Load per-asset WSE from hecras_wse_results.json ---
         if selected_asset in wse_results:
             asset_wse_data = wse_results[selected_asset]
             wse = asset_wse_data['wse_m']
             base_z = asset_wse_data['base_z_m']
+            if is_real_hecras and asset_wse_data.get('timestamps'):
+                timestamps = asset_wse_data['timestamps']
         else:
             # Fallback: estimate from rain+runoff (for assets not in wse_results)
             base_z = z_yellow - 1.5
             wse = [base_z + ((r * 0.05) + (df_swi.iloc[i]["active_runoff_mm"] * 0.1))
-                   for i, r in enumerate(df_rain['intensity_mm_h'])]
+                   for i, r in enumerate(df_swi['intensity_mm_h'])]
 
         # Clamp wse length to match timestamps
         wse = wse[:len(timestamps)]
@@ -645,20 +839,99 @@ with col2:
 
     st.subheader("Soil Saturation (SWI)")
     delta_str = f"{delta_swi:+.4f} mm" if delta_swi != 0 else "stable"
-    st.metric(label=f"SWI at T+{t_idx}h", value=f"{current_swi:.4f} mm", delta=delta_str)
+    ts_label = str(current_ts)[11:16] if ":" in str(current_ts) else f"T+{t_idx}h"
+    st.metric(label=f"SWI at {ts_label}", value=f"{current_swi:.4f} mm", delta=delta_str)
 
     st.subheader("Runoff Coefficient")
-    st.metric(label=f"C_runoff at T+{t_idx}h", value=f"{current_runoff_c:.6f}")
+    st.metric(label=f"C_runoff at {ts_label}", value=f"{current_runoff_c:.6f}")
 
     st.subheader("Active Runoff")
-    st.metric(label=f"Runoff at T+{t_idx}h", value=f"{current_runoff_mm:.4f} mm/h")
+    st.metric(label=f"Runoff at {ts_label}", value=f"{current_runoff_mm:.4f} mm/h")
+
+    # ============================================================
+    # F3: ACCUMULATED RAINFALL GRAPH
+    # ============================================================
+    st.subheader("Rainfall Profile")
+
+    def calculate_accumulated_rainfall(df_r, interval_hours=1.0):
+        """Compute step depth and cumulative accumulated rainfall from intensity series."""
+        df_r = df_r.copy()
+        df_r["step_depth_mm"] = df_r["intensity_mm_h"] * interval_hours
+        df_r["accumulated_mm"] = df_r["step_depth_mm"].cumsum()
+        return df_r
+
+    if len(df_swi) > 0 and "intensity_mm_h" in df_swi.columns:
+        if is_real_hecras:
+            if "P02" in selected_plan:
+                interval_h = 10 / 60.0
+            elif "P01" in selected_plan:
+                interval_h = 5 / 60.0
+            else:
+                interval_h = 1.0
+        else:
+            interval_h = 1.0
+        df_acc = calculate_accumulated_rainfall(df_swi[["timestamp", "intensity_mm_h"]].copy(), interval_hours=interval_h)
+        df_display = df_acc.copy()
+
+        total_rain = df_acc["accumulated_mm"].max()
+        current_accum = df_acc.iloc[t_idx]["accumulated_mm"] if t_idx < len(df_acc) else 0
+        st.metric("Total Storm Rainfall", f"{total_rain:.1f} mm",
+                  delta=f"{current_accum:.1f} mm so far")
+
+        fig_rain = make_subplots(specs=[[{"secondary_y": True}]])
+
+        # Bars: intensity
+        fig_rain.add_trace(
+            go.Bar(
+                x=df_display["timestamp"],
+                y=df_display["intensity_mm_h"],
+                name="Intensity (mm/h)",
+                marker_color=["rgba(41,128,185,0.85)" if i <= t_idx
+                               else "rgba(41,128,185,0.25)"
+                               for i in range(len(df_display))],
+            ),
+            secondary_y=False,
+        )
+
+        # Line: accumulated depth
+        fig_rain.add_trace(
+            go.Scatter(
+                x=df_display["timestamp"],
+                y=df_display["accumulated_mm"],
+                name="Accumulated (mm)",
+                mode="lines",
+                line=dict(color="#e67e22", width=2),
+            ),
+            secondary_y=True,
+        )
+
+        # Current timestep marker
+        if t_idx < len(df_display):
+            fig_rain.add_vline(
+                x=df_display.iloc[t_idx]["timestamp"],
+                line_width=1.5, line_dash="dash", line_color="darkgrey"
+            )
+
+        fig_rain.update_xaxes(title_text="Time")
+        fig_rain.update_yaxes(title_text="Intensity (mm/h)", secondary_y=False)
+        fig_rain.update_yaxes(title_text="Accumulated (mm)", secondary_y=True)
+        fig_rain.update_layout(
+            height=250,
+            margin=dict(l=10, r=10, t=20, b=30),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02,
+                        xanchor="right", x=1),
+            hovermode="x unified",
+        )
+        st.plotly_chart(fig_rain, use_container_width=True, config={"displayModeBar": False})
+    else:
+        st.info("Rainfall time-series not available for current mode.")
 
     st.subheader("Event Log")
     events = []
     if len(df_swi) > 0:
         for i in range(min(t_idx + 1, len(df_swi))):
             row = df_swi.iloc[i]
-            ts_short = str(row["timestamp"])[11:16]
+            ts_short = str(row["timestamp"])[11:16] if ":" in str(row["timestamp"]) else f"T+{i}h"
             if row["intensity_mm_h"] > 8:
                 events.append(f"{ts_short} - Heavy rain detected ({row['intensity_mm_h']:.1f} mm/h)")
             if row["swi_mm"] > 0.1:
@@ -669,3 +942,19 @@ with col2:
 
 st.divider()
 st.caption("Developed by TRAN Trong-Tin, Amal, Szilvi | SNCF Digital Twin Research | Forecast Simulation Engine v2.0")
+
+# ============================================================
+# AUTO-ADVANCE LOGIC (Must run last so the UI renders fully first)
+# ============================================================
+if is_playing:
+    if t_idx < n_steps - 1:
+        time.sleep(animation_speed_ms / 1000.0)
+        st.session_state["timeline_idx"] = t_idx + 1
+        st.rerun()
+    elif loop_animation:
+        time.sleep(animation_speed_ms / 1000.0)
+        st.session_state["timeline_idx"] = 0
+        st.rerun()
+    else:
+        # Reached end but loop is disabled. Do nothing.
+        pass
