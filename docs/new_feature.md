@@ -783,3 +783,127 @@ if is_playing:
 * The **alert table** dynamically updates showing which assets enter Yellow → Orange → Red as water rises.
 * The **rainfall bar chart** highlights the current hour's intensity bar.
 
+
+# Feature F4: GIS-Style 2D Flow Mapping Overlay (HEC-RAS Mapper Style)
+
+This document outlines the design and technical specifications for rendering the HEC-RAS 2D flow area results (water depth, WSE, and velocity) directly on the dashboard map, replicating the look and feel of **HEC-RAS Mapper**.
+
+> **Target Reference**: HEC-RAS Mapper shows a hillshade terrain basemap with a continuous green→yellow→red color ramp overlay on the flooded cells, GIS-style layer checkboxes on the left, and a color legend bar on the right.
+
+---
+
+## 1. Objective
+Enable operators to visualize spatially continuous flood inundation maps on top of high-resolution hillshade terrain, exactly mimicking HEC-RAS Mapper. This allows visual diagnostics of local flow pathways, scour zones, and which specific segments of the railway embankment or track are submerged.
+
+---
+
+## 2. Target Visual Style (HEC-RAS Mapper)
+The target visualization from the user's reference screenshot shows:
+
+| Element | Description |
+|:--------|:------------|
+| **Basemap** | ESRI Terrain Hillshade — shaded grey relief elevation (shadows cast from upper-left sun angle) |
+| **Flood cells** | Continuous color ramp: green (low) → yellow (medium) → red/orange (high) matching the selected variable (WSE, Depth, or Velocity) |
+| **Railway infrastructure** | Black track outlines, dark red embankment fills, blue watercourses rendered as crisp vector lines |
+| **Color legend** | Bottom-right panel showing the variable's value range mapped to the color ramp |
+| **Layer tree** | Left panel GIS-style checkboxes: Plans (P01, P02) → Results → Depth (Max) / Velocity (Max) / WSE (Max) |
+
+---
+
+## 3. Multi-Layer GIS Visualization Selection
+The sidebar features a layer selector to toggle between three HEC-RAS 2D result variables:
+1. **Water Depth (m)**: `WSE − Cell Minimum Elevation`. Color ramp: light cyan `[173,216,230]` → royal blue `[65,105,225]` → indigo `[75,0,130]`.
+2. **Water Surface Elevation – WSE (m NGF)**: Absolute water level. Color ramp matching HEC-RAS Mapper: green `[0,200,100]` → yellow `[255,215,0]` → orange `[255,140,0]` → red `[200,0,0]` (value-based normalization against min/max in view).
+3. **Flow Velocity (m/s)**: Mean magnitude at cell centroids from HDF5 `Face Velocity`. Color ramp: lime green `[50,205,50]` → orange `[255,165,0]` → red `[255,69,0]` → dark violet `[148,0,211]` for extreme scour zones > 2.0 m/s.
+
+Additionally, a **Map Basemap Style** selector allows switching between:
+- **Terrain Hillshade** (ESRI World Hillshade tiles) — recommended for HEC-RAS Mapper style
+- **CartoDB Light** — clean flat cartography for data clarity
+
+---
+
+## 4. Rendering Modes
+
+### Mode A: Point Cloud (Current — ScatterplotLayer)
+Each HEC-RAS mesh cell centroid is rendered as a circle with a discrete color bucket. This is fast and requires no pre-processing.
+
+**Pros**: Simple, real-time, works with any variable.  
+**Cons**: Shows individual dots, not a solid filled flood polygon. Does not exactly replicate the smooth HEC-RAS Mapper look.
+
+### Mode B: Raster BitmapLayer (Target — HEC-RAS Mapper Style) ⭐
+For each timestep, the 2D result array is rasterized into a PNG image (using `numpy` + `PIL`) with a continuous color gradient mapped to the selected variable. The image is geo-referenced to the model domain bounding box and served as a PyDeck `BitmapLayer`.
+
+**Implementation Steps**:
+1. After extracting `wse_row`, `depth`, or `velocity_ms` arrays from HDF5:
+   ```python
+   import numpy as np
+   from PIL import Image
+   import io, base64
+
+   # Normalize values to 0–255 color range
+   norm = (values - vmin) / (vmax - vmin + 1e-9)
+   norm = np.clip(norm, 0, 1)
+
+   # Apply HEC-RAS Mapper-style color ramp: green→yellow→red
+   r = (norm * 255).astype(np.uint8)
+   g = ((1 - norm) * 200).astype(np.uint8)
+   b = np.zeros_like(r)
+   alpha = np.where(norm > 0.01, 180, 0).astype(np.uint8)  # Transparent for dry
+
+   # Stack and export to in-memory PNG
+   rgba = np.stack([r, g, b, alpha], axis=-1)
+   img = Image.fromarray(rgba, mode='RGBA')
+   buf = io.BytesIO()
+   img.save(buf, format='PNG')
+   img_b64 = base64.b64encode(buf.getvalue()).decode()
+   ```
+2. Render as a PyDeck `BitmapLayer` stretched over the model bounding box:
+   ```python
+   pdk.Layer(
+       'BitmapLayer',
+       data=f'data:image/png;base64,{img_b64}',
+       bounds=[lon_min, lat_min, lon_max, lat_max],
+       opacity=0.7,
+   )
+   ```
+
+**Pros**: Smooth, pixel-perfect continuous color ramp exactly like HEC-RAS Mapper. Looks professional.  
+**Cons**: Requires extra rasterization step (~100ms per timestep). Needs the cell coordinates arranged in a spatial grid (or Voronoi-interpolated onto a regular grid).
+
+> [!IMPORTANT]
+> **Preferred target**: Mode B is the goal for the final thesis dashboard demonstration. Mode A (point cloud) is the working baseline already implemented. Mode B should be implemented as F4.6 when thesis writing time allows.
+
+---
+
+## 5. WebGL Submergence Rendering (Asset Blending)
+To show *exactly* which parts of a track segment or embankment are submerged, we leverage PyDeck's GPU layer stacking:
+
+```
+[Layer 4: Status / Risk Alert Markers (Top — always on top)]
+[Layer 3: Translucent Flood overlay — Mode A ScatterplotLayer or Mode B BitmapLayer]
+[Layer 2: Track, Embankments, Ditch Vector lines — GeoJsonLayer]
+[Layer 1: Hillshade / DTM TileLayer Basemap]
+```
+
+* **Visual Underwater Blending**: When the translucent water overlay (Layer 3) is drawn above the infrastructure vectors (Layer 2), WebGL naturally alpha-blends the water color over the submerged portions of the track, making it visually appear underwater. Dry sections above the water surface are unaffected.
+* **Unified Tooltip**: Hovering over a water grid cell displays `Type: 2D Flow Area`, local Depth, WSE, and Velocity. Hovering over an asset marker displays the asset name, alert level, and local submergence depth.
+
+---
+
+## 6. Color Legend Panel
+To replicate the HEC-RAS Mapper color scale legend (bottom-right corner), an inline Plotly or HTML-based gradient bar will be rendered below the map using `st.markdown()` with CSS gradient styling, showing the variable range from min to max with color stops.
+
+```python
+# Example for WSE legend
+legend_html = f"""
+<div style='display:flex; align-items:center; gap:10px; padding:4px 8px; background:#1a1a2e; border-radius:6px'>
+  <span style='color:white; font-size:12px'>{vmin:.1f} m</span>
+  <div style='flex:1; height:14px; border-radius:4px;
+    background: linear-gradient(to right, #00c864, #ffd700, #ff8c00, #c80000);'></div>
+  <span style='color:white; font-size:12px'>{vmax:.1f} m</span>
+  <span style='color:#aaa; font-size:11px'>WSE (m NGF)</span>
+</div>
+"""
+st.markdown(legend_html, unsafe_allow_html=True)
+```
+

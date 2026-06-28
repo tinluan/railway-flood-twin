@@ -321,6 +321,22 @@ asset_types = st.sidebar.multiselect(
     default=ALL_ASSET_TYPES
 )
 
+st.sidebar.divider()
+st.sidebar.subheader("Map Visual Settings")
+map_overlay_layer = st.sidebar.selectbox(
+    "HEC-RAS 2D Flow Overlay",
+    ["Water Depth", "Water Surface Elevation (WSE)", "Flow Velocity", "None"],
+    index=0,
+    help="Select the HEC-RAS 2D model variable to show as an overlay on the map."
+)
+
+map_basemap = st.sidebar.selectbox(
+    "Map Basemap Style",
+    ["Terrain Hillshade", "CartoDB Light"],
+    index=0,
+    help="Toggle between shaded relief terrain elevation and simple light cartography."
+)
+
 # ============================================================
 # TIME SLIDER & PLAY BUTTON (F2: Automatic Timeline Animation)
 # ============================================================
@@ -467,11 +483,30 @@ def risk_to_cap_level(r):
     return "GREEN"
 
 if not all_assets.empty:
+    # Compute WSE and depth per asset at current timestep
+    def get_wse_depth(row):
+        asset_id = row["name"]
+        asset_wse_data = wse_results.get(asset_id, {})
+        wse_series = asset_wse_data.get("wse_m", [])
+        if wse_series and t_idx < len(wse_series):
+            wse = wse_series[t_idx]
+            base_z = asset_wse_data.get("base_z_m", 0.0)
+            depth = max(0.0, wse - base_z)
+            return pd.Series([wse, depth])
+        return pd.Series([None, None])
+        
+    all_assets[["wse_val", "depth_val"]] = all_assets.apply(get_wse_depth, axis=1)
+
     all_assets["risk_level"] = all_assets.apply(
         lambda r: compute_risk_at_t(r, t_idx, wse_results, z_config), axis=1
     )
     all_assets["cap_level"] = all_assets["risk_level"].apply(risk_to_cap_level)
     all_assets["color"] = all_assets["cap_level"].apply(lambda lv: CAP_COLORS_RGBA[lv])
+    
+    # Formatted strings for unified PyDeck tooltip
+    all_assets["wse_m"] = all_assets["wse_val"].apply(lambda w: f"{w:.2f}" if pd.notna(w) else "N/A")
+    all_assets["depth_m"] = all_assets["depth_val"].apply(lambda d: f"{d:.2f}" if pd.notna(d) else "N/A")
+    all_assets["tooltip_risk"] = all_assets["risk_level"].apply(lambda r: f"{r}%")
 
 # Filter by selected asset types
 filtered = all_assets[all_assets["asset_type"].isin(asset_types)] if (asset_types and not all_assets.empty) else all_assets
@@ -519,8 +554,114 @@ with col1:
             auto_highlight=True,
         )
 
+        # --- 2D Flow Map Overlay (F4) ---
+        flow_layer = None
+        hdf5_plan_files = {
+            "P01: R100_1HR (100mm rainfall storm, 1h)": paths.RAW.parent / "hec-ras" / "CAPSTONE_JN_L752_PK.p01.hdf",
+            "P02: 21SEP2025 (Historical event, 21h)": paths.RAW.parent / "hec-ras" / "CAPSTONE_JN_L752_PK.p02.hdf",
+        }
+        hdf5_path = hdf5_plan_files.get(selected_plan)
+
+        # Build overlay layer based on sidebar choice
+        if hdf5_path and hdf5_path.exists() and map_overlay_layer != "None":
+            try:
+                from src.engine.hecras_hdf5_reader import extract_downsampled_flow_data
+                # Extract downsampled flow data for the current timestep
+                flow_data = extract_downsampled_flow_data(
+                    hdf5_path=hdf5_path,
+                    timestep_idx=t_idx,
+                    max_cells=5000,
+                    depth_threshold=0.02,
+                    dry_sample_rate=50
+                )
+                if flow_data and flow_data.get("points"):
+                    df_flow = pd.DataFrame(flow_data["points"])
+                    
+                    # Colors based on selected variable
+                    if map_overlay_layer == "Water Depth":
+                        def get_color(row):
+                            d = row["depth_m"]
+                            fl = row["flooded"]
+                            if not fl or d <= 0.02:
+                                return [200, 200, 200, 20] # Light grey dry context
+                            elif d < 0.2:
+                                return [173, 216, 230, 160] # Light blue
+                            elif d < 0.7:
+                                return [65, 105, 225, 200]  # Royal blue
+                            elif d < 1.5:
+                                return [0, 0, 139, 220]      # Dark blue
+                            else:
+                                return [75, 0, 130, 240]     # Indigo / Deep flood
+                    elif map_overlay_layer == "Water Surface Elevation (WSE)":
+                        def get_color(row):
+                            w = row["wse_m"]
+                            fl = row["flooded"]
+                            if not fl or pd.isna(w):
+                                return [200, 200, 200, 20]
+                            if w < 200:
+                                return [0, 191, 255, 160]   # Deep Sky Blue
+                            elif w < 250:
+                                return [0, 139, 139, 180]   # Dark Cyan
+                            elif w < 300:
+                                return [70, 130, 180, 200]  # Steel Blue
+                            elif w < 400:
+                                return [65, 105, 225, 210]  # Royal Blue
+                            else:
+                                return [25, 25, 112, 230]   # Midnight Blue
+                    else: # Flow Velocity
+                        def get_color(row):
+                            v = row["velocity_ms"]
+                            fl = row["flooded"]
+                            if not fl or v < 0.1:
+                                return [200, 200, 200, 20]
+                            elif v < 0.5:
+                                return [50, 205, 50, 160]    # Lime Green
+                            elif v < 1.2:
+                                return [255, 165, 0, 180]   # Orange
+                            elif v < 2.0:
+                                return [255, 69, 0, 210]    # Orange Red
+                            else:
+                                return [148, 0, 211, 240]   # Dark Violet
+
+                    df_flow["color"] = df_flow.apply(get_color, axis=1)
+                    
+                    # Add unified hover properties
+                    df_flow["name"] = "2D Mesh Cell"
+                    df_flow["asset_type"] = f"2D Flow Area ({map_overlay_layer})"
+                    df_flow["tooltip_risk"] = "N/A"
+                    df_flow["velocity_ms_val"] = df_flow["velocity_ms"]
+                    df_flow["velocity_ms"] = df_flow["velocity_ms_val"].apply(lambda v: f"{v:.2f}")
+                    df_flow["depth_m"] = df_flow["depth_m"].apply(lambda d: f"{d:.2f}")
+                    df_flow["wse_m"] = df_flow["wse_m"].apply(lambda w: f"{w:.2f}" if pd.notna(w) else "N/A")
+                    
+                    flow_layer = pdk.Layer(
+                        "ScatterplotLayer",
+                        data=df_flow,
+                        get_position=["lon", "lat"],
+                        get_radius=12,
+                        radius_units="meters", # Meters scales dynamically with zooming
+                        radius_min_pixels=3,
+                        radius_max_pixels=12,
+                        get_fill_color="color",
+                        pickable=True,
+                    )
+            except Exception as e:
+                st.warning(f"Could not load 2D flow mapping: {e}")
+
+        # Format asset fields to match overlay properties for unified hover tooltip
+        if not filtered.empty:
+            filtered["velocity_ms"] = "N/A"
+
+        # Unified tooltip for both layers
         tooltip = {
-            "html": "<b>{name}</b><br/>Type: {asset_type}<br/>Risk: {risk_level}%",
+            "html": (
+                "<b>{name}</b><br/>"
+                "Type: {asset_type}<br/>"
+                "Asset Risk: {tooltip_risk}<br/>"
+                "Water Depth: {depth_m} m<br/>"
+                "WSE: {wse_m} m<br/>"
+                "Velocity: {velocity_ms} m/s"
+            ),
             "style": {"backgroundColor": "#1a1a2e", "color": "white", "fontSize": "13px"}
         }
 
@@ -539,9 +680,64 @@ with col1:
         except Exception:
             infra_layers = []
 
+        # Determine Map Basemap Style
+        if map_basemap == "Terrain Hillshade":
+            style_dict = {
+                "version": 8,
+                "sources": {
+                    "hillshade": {
+                        "type": "raster",
+                        "tiles": ["https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}.jpg"],
+                        "tileSize": 256
+                    }
+                },
+                "layers": [
+                    {
+                        "id": "hillshade-layer",
+                        "type": "raster",
+                        "source": "hillshade",
+                        "minzoom": 0,
+                        "maxzoom": 22
+                    }
+                ]
+            }
+        else:
+            style_dict = {
+                "version": 8,
+                "sources": {
+                    "cartodb": {
+                        "type": "raster",
+                        "tiles": ["https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"],
+                        "tileSize": 256
+                    }
+                },
+                "layers": [
+                    {
+                        "id": "cartodb-layer",
+                        "type": "raster",
+                        "source": "cartodb",
+                        "minzoom": 0,
+                        "maxzoom": 22
+                    }
+                ]
+            }
+
+        import json
+        import base64
+        style_json = json.dumps(style_dict)
+        basemap_style_url = f"data:application/json;base64,{base64.b64encode(style_json.encode()).decode()}"
+
         try:
+            deck_layers = [
+                *infra_layers,
+            ]
+            if flow_layer:
+                deck_layers.append(flow_layer)
+            deck_layers.append(risk_layer)
+
             st.pydeck_chart(pdk.Deck(
-                map_style=None,
+                map_style=basemap_style_url,
+                map_provider="mapbox",
                 initial_view_state=pdk.ViewState(
                     latitude=center_lat,
                     longitude=center_lon,
@@ -549,17 +745,63 @@ with col1:
                     pitch=30,
                     bearing=-10,
                 ),
-                layers=[
-                    pdk.Layer(
-                        "TileLayer",
-                        data="https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-                        get_tile_data=None,
-                    ),
-                    *infra_layers,
-                    risk_layer,
-                ],
+                layers=deck_layers,
                 tooltip=tooltip,
             ))
+
+            # --- Inline Map Legend (F4.7) ---
+            if map_overlay_layer != "None":
+                if map_overlay_layer == "Water Depth":
+                    legend_html = """
+                    <div style='display:flex; align-items:center; gap:10px; padding:6px 12px; background:#1e293b; border-radius:6px; margin-top:8px; border:1px solid #334155'>
+                        <span style='color:white; font-size:12px; font-weight:bold'>Legend (Depth):</span>
+                        <span style='color:#94a3b8; font-size:11px'>Dry Context</span>
+                        <div style='width:12px; height:12px; background:rgba(200,200,200,0.8); border-radius:2px'></div>
+                        <span style='color:#94a3b8; font-size:11px'>&lt;0.2m</span>
+                        <div style='width:12px; height:12px; background:rgba(173,216,230,0.8); border-radius:2px'></div>
+                        <span style='color:#94a3b8; font-size:11px'>0.2m - 0.7m</span>
+                        <div style='width:12px; height:12px; background:rgba(65,105,225,0.8); border-radius:2px'></div>
+                        <span style='color:#94a3b8; font-size:11px'>0.7m - 1.5m</span>
+                        <div style='width:12px; height:12px; background:rgba(0,0,139,0.8); border-radius:2px'></div>
+                        <span style='color:#94a3b8; font-size:11px'>&gt;1.5m</span>
+                        <div style='width:12px; height:12px; background:rgba(75,0,130,0.8); border-radius:2px'></div>
+                    </div>
+                    """
+                elif map_overlay_layer == "Water Surface Elevation (WSE)":
+                    legend_html = """
+                    <div style='display:flex; align-items:center; gap:10px; padding:6px 12px; background:#1e293b; border-radius:6px; margin-top:8px; border:1px solid #334155'>
+                        <span style='color:white; font-size:12px; font-weight:bold'>Legend (WSE):</span>
+                        <span style='color:#94a3b8; font-size:11px'>Dry Context</span>
+                        <div style='width:12px; height:12px; background:rgba(200,200,200,0.8); border-radius:2px'></div>
+                        <span style='color:#94a3b8; font-size:11px'>&lt;200m</span>
+                        <div style='width:12px; height:12px; background:rgba(0,191,255,0.8); border-radius:2px'></div>
+                        <span style='color:#94a3b8; font-size:11px'>200m - 250m</span>
+                        <div style='width:12px; height:12px; background:rgba(0,139,139,0.8); border-radius:2px'></div>
+                        <span style='color:#94a3b8; font-size:11px'>250m - 300m</span>
+                        <div style='width:12px; height:12px; background:rgba(70,130,180,0.8); border-radius:2px'></div>
+                        <span style='color:#94a3b8; font-size:11px'>300m - 400m</span>
+                        <div style='width:12px; height:12px; background:rgba(65,105,225,0.8); border-radius:2px'></div>
+                        <span style='color:#94a3b8; font-size:11px'>&gt;400m</span>
+                        <div style='width:12px; height:12px; background:rgba(25,25,112,0.8); border-radius:2px'></div>
+                    </div>
+                    """
+                else:  # Flow Velocity
+                    legend_html = """
+                    <div style='display:flex; align-items:center; gap:10px; padding:6px 12px; background:#1e293b; border-radius:6px; margin-top:8px; border:1px solid #334155'>
+                        <span style='color:white; font-size:12px; font-weight:bold'>Legend (Velocity):</span>
+                        <span style='color:#94a3b8; font-size:11px'>Dry Context</span>
+                        <div style='width:12px; height:12px; background:rgba(200,200,200,0.8); border-radius:2px'></div>
+                        <span style='color:#94a3b8; font-size:11px'>&lt;0.5 m/s</span>
+                        <div style='width:12px; height:12px; background:rgba(50,205,50,0.8); border-radius:2px'></div>
+                        <span style='color:#94a3b8; font-size:11px'>0.5 - 1.2 m/s</span>
+                        <div style='width:12px; height:12px; background:rgba(255,165,0,0.8); border-radius:2px'></div>
+                        <span style='color:#94a3b8; font-size:11px'>1.2 - 2.0 m/s</span>
+                        <div style='width:12px; height:12px; background:rgba(255,69,0,0.8); border-radius:2px'></div>
+                        <span style='color:#94a3b8; font-size:11px'>&gt;2.0 m/s</span>
+                        <div style='width:12px; height:12px; background:rgba(148,0,211,0.8); border-radius:2px'></div>
+                    </div>
+                    """
+                st.markdown(legend_html, unsafe_allow_html=True)
         except Exception as e:
             st.warning(f"Map rendering issue: {e}")
 
