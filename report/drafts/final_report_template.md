@@ -13,11 +13,11 @@
 
 This report presents the design, implementation, and validation of a 4-layer railway flood-risk Digital Twin for the SNCF Tartaiguille corridor (Ligne 400, Drôme). The system integrates real-time meteorological data (Open-Meteo API), a hydrological screening layer based on the Soil Water Index (SWI), 2D hydraulic modeling (HEC-RAS), and vulnerability assessment using log-normal fragility curves calibrated against field data from Tsubaki et al. (2016).
 
-The architecture implements a "Funnel Strategy" where the lightweight SWI layer screens the corridor in sub-second time, triggering the computationally expensive HEC-RAS 2D engine only when soil saturation exceeds a critical threshold (SWI > 100 mm). The F5 Grouped Architecture partitions the corridor into 21 sections, consolidating 107 physical assets (track segments, embankments, culverts, and bridges) to evaluate safety thresholds. The system resolves raw grid-level WSE outputs from pre-computed HEC-RAS HDF5 files (Plan 2: 21092025 Cévenol Storm) to generate RAMS-compliant alert levels (GREEN/YELLOW/ORANGE/RED) using a worst-case group roll-up.
+The architecture implements a "Funnel Strategy" where the lightweight SWI layer screens the corridor in sub-second time, triggering the computationally expensive HEC-RAS 2D engine only when soil saturation exceeds a critical threshold (SWI > 100 mm). The Group-Based Asset Architecture partitions the corridor into 21 sections, consolidating 107 physical assets (track segments, embankments, culverts, and bridges) to evaluate safety thresholds. The system resolves raw grid-level WSE outputs from pre-computed HEC-RAS HDF5 files (Plan 2: 21092025 Cévenol Storm) to generate RAMS-compliant alert levels (GREEN/YELLOW/ORANGE/RED) using a worst-case group roll-up.
 
 A sensitivity analysis of the SWI half-life parameter ($T$ = 3–60 days) demonstrates model robustness, and a historical Cévenol storm replay validates end-to-end pipeline functionality. This report details the final twin architecture, documents database inventory schemas, addresses map-rendering heuristics (depth-based alpha masking), and outlines a maturity roadmap for future live data assimilation.
 
-**Keywords**: Digital Twin, Railway Infrastructure, Flood Risk, HEC-RAS, SWI, Fragility Curves, F5 Grouping, SNCF, RAMS
+**Keywords**: Digital Twin, Railway Infrastructure, Flood Risk, HEC-RAS, SWI, Fragility Curves, Section Grouping, SNCF, RAMS
 
 ---
 
@@ -46,7 +46,7 @@ Railway infrastructure in southern France is increasingly exposed to flash-flood
 This thesis develops a Digital Twin prototype that:
 1. **Screens** the corridor in real-time using a Soil Water Index (SWI) to identify saturation conditions.
 2. **Simulates** flood hydraulics via HEC-RAS 2D when saturation thresholds are exceeded.
-3. **Groups** assets functionally to align hydraulic water surface elevations with structural dependencies (F5 Grouping).
+3. **Groups** assets functionally to align hydraulic water surface elevations with structural dependencies (Section Grouping).
 4. **Evaluates** structural vulnerability using fragility curves calibrated against published field data.
 5. **Dispatches** RAMS-compliant alerts (speed restriction/halt) to operations control.
 
@@ -121,7 +121,7 @@ The study area covers the Tartaiguille section of SNCF Ligne 400 (Montélimar–
 | Elevation range | 167.7 m – 376.3 m |
 | Track elevation (Voie_seg_00) | 207.11 m (terrain), 207.11 m (ballast top) |
 
-### 3.3 BIM Asset Registry & F5 Sections
+### 3.3 BIM Asset Registry & Corridor Sections
 
 The digital twin incorporates 107 BIM assets across 4 categories, segmented horizontally into 21 corridor sections (each spanning ~100m of track).
 
@@ -220,7 +220,7 @@ graph TD
 
     subgraph "Layer 4 - Vulnerability and Alert"
         E -->|"WSE per asset"| G["Vulnerability Alert Router"]
-        G -->|"Log-Normal Fragility Curves"| H["Worst-case F5 Group Roll-up"]
+        G -->|"Log-Normal Fragility Curves"| H["Worst-case Group Roll-up"]
         H --> I["HMI Streamlit Alert Table"]
     end
 ```
@@ -330,9 +330,9 @@ To display HEC-RAS 2D flow fields on the dashboard without loading a 1.24 GB DTM
 $$\text{Alpha} = \text{clip}\left(\frac{\text{Depth} - 0.20}{0.35 - 0.20} \times 180, 0, 180\right)$$
 This ensures only actual flood channels ($>35\text{ cm}$ depth) are rendered, matching HEC-RAS Mapper's clean visual representation.
 
-### 4.5 Layer 4: F5 Grouped Architecture & RAMS Alerts
+### 4.5 Layer 4: Group-Based Alert Architecture & RAMS Alerts
 
-#### 4.5.1 F5 Grouping Schema
+#### 4.5.1 Section Grouping Schema
 Rather than executing independent spatial queries for each asset, Ligne 400 is partitioned into 21 sections. Each section represents a track-talus-drainage unit:
 * **Track + Talus Subgroup**: Share a centerline elevation ($Z_{\text{DTM}}$).
 * **Drainage Subgroup**: Culverts and ditches associated with that track segment.
@@ -360,7 +360,7 @@ graph TD
     RollUp --> SectionStatus["Overall Section Alert Level"]
 ```
 
-*Figure 8: F5 Section Group alert evaluation and worst-case roll-up flow for Section_11.*
+*Figure 8: Section Group alert evaluation and worst-case roll-up flow for Section_11.*
 
 #### 4.5.2 Threshold Definitions
 * **Track & Talus Thresholds**:
@@ -530,7 +530,7 @@ In `app_main.py`, any WSE in the orange zone ($Z_{\text{DTM}} - 0.5\text{ m}$ to
 During the replay of the September 2025 Cévenol storm at $T+44$:
 * `Section_11`'s track segment (`Voie_seg_11`) remains completely safe and dry with a WSE of $207.28\text{ m}$ (well below its yellow threshold of $207.91\text{ m}$).
 * However, `Section_11` has an overall status of **YELLOW** with "Drainage Alerts: 1/7". This is because the culvert **`Buse_0`** (invert bottom $= 203.61\text{ m}$) has filled to a WSE of $203.70\text{ m}$, triggering a local drainage alert.
-This demonstrates the effectiveness of the F5 grouping: it alerts operators to minor drainage capacity exceedances before the track itself is ever threatened.
+This demonstrates the effectiveness of the section grouping: it alerts operators to minor drainage capacity exceedances before the track itself is ever threatened.
 
 ### 6.3 Diagnostic Screenshot Analysis
 Below are direct captures from the active digital twin interface illustrating the specific operational conditions analyzed above:
@@ -570,7 +570,7 @@ gantt
     section Phase 1
     Digital Shadow Prototype   :done,    des1, 2026-05-01, 2026-06-30
     section Phase 2
-    F5 Group Map Refactoring   :active,  des2, 2026-07-01, 2026-09-30
+    Group Alert Map Refactoring   :active,  des2, 2026-07-01, 2026-09-30
     section Phase 3
     EKF Sensor Assimilation    :         des3, 2026-10-01, 2027-03-31
     section Phase 4
@@ -624,7 +624,7 @@ graph TD
 
 This report presents a 4-layer railway flood-risk Digital Twin prototype for the SNCF Tartaiguille corridor. Key contributions include:
 1. **Funnel Strategy Architecture**: Achieves a $>1000:1$ computational savings ratio by using a lightweight SWI screening layer to filter out dry periods.
-2. **F5 Grouping**: Maps 107 assets into 21 sections, enabling worst-case hazard roll-ups (ditches, tracks, and bridges evaluated together).
+2. **Section Grouping**: Maps 107 assets into 21 sections, enabling worst-case hazard roll-ups (ditches, tracks, and bridges evaluated together).
 3. **Scientific Vulnerability Calibration**: Integrates field-calibrated fragility curves (Tsubaki, 2016), triggering yellow alerts $2\text{ cm}$ earlier for a higher safety margin.
 4. **End-to-End Validation**: Storm replay verifies that SWI triggers the HEC-RAS HDF5 ingestion pipeline seamlessly.
 
