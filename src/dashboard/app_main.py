@@ -726,8 +726,14 @@ with col1:
             if hdf5_path.exists():
                 try:
                     with h5py.File(str(hdf5_path), 'r') as _f:
-                        if "Results" in _f:
-                            is_valid = True
+                        # Deep check: verify there is a Water Surface dataset present
+                        uts_path = "Results/Unsteady/Output/Output Blocks/Base Output/Unsteady Time Series/2D Flow Areas"
+                        if uts_path in _f:
+                            g = _f[uts_path]
+                            for fa in g.keys():
+                                if "Water Surface" in g[fa]:
+                                    is_valid = True
+                                    break
                 except Exception:
                     pass
             if not is_valid:
