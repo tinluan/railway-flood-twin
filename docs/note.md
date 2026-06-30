@@ -508,3 +508,34 @@ Bridges use structural clearance and freeboard design parameters:
 *   **🟠 ORANGE**: $\text{Bridge Girder Bottom} + 0.5\text{ m}$ (reduced safety freeboard, threatening debris collision).
 *   **🟡 YELLOW**: Girder Bottom Elevation (water level rises to touch the lowest point of the superstructure).
 
+---
+
+## 19. Dry-State Positive Track Margin & HEC-RAS WSE Default Behavior
+
+### Question
+At T+0 or T+1 (no rainfall), why do some dry track segments show positive (red-colored) margins in the dashboard alerts table? Does this mean the HEC-RAS model returns WSE values at dry points?
+
+### Response
+
+Yes. The HEC-RAS simulation grid outputs a Water Surface Elevation (WSE) value for every cell at every timestep. When a cell is completely dry, the model defaults the WSE value to the **minimum terrain elevation (physical ground level)** of that cell. 
+
+This interaction causes positive dry-state margins on shallow embankments due to how warning thresholds are defined and colored:
+
+#### 1. Threshold Reference Shifting
+The alert engine calculates the margin dynamically based on the current alert level:
+*   **GREEN/YELLOW state**: Margin is computed relative to the **🟡 Yellow threshold** ($Z_{\text{DTM}} - 2.0\text{ m}$, representing the toe of a typical $2\text{-meter}$ embankment slope):
+    $$\text{Margin} = \text{WSE} - \text{Yellow Z}$$
+*   **ORANGE/RED state**: Margin is computed relative to the **🟠 Orange threshold** ($Z_{\text{DTM}} - 0.5\text{ m}$, representing the ballast base).
+
+#### 2. Shallow Embankment Conflict
+On flat ground or shallow embankments, the dry ground surface is physically higher than the theoretical $-2.0\text{ m}$ Yellow offset.
+*   *Example (Section 14 at T+1):*
+    *   **Red Z** (Top of rail) = $220.93\text{ m}$
+    *   **Yellow Z** (Theoretical toe) = $220.93 - 2.0\text{ m} = 218.93\text{ m}$
+    *   **Dry Ground Level** (WSE returned by HEC-RAS) = $219.63\text{ m}$ (only $1.3\text{ m}$ below the rail crown)
+    *   *Calculation:* $\text{Margin} = 219.63\text{ m} - 218.93\text{ m} = \mathbf{+0.70\text{ m}}$
+
+#### 3. UI Coloring Logic
+The dashboard applies a flat check: **any positive margin ($>0$) is colored in Red/Orange** to indicate a threshold breach, even if the track status is still GREEN (since the dry ground is safely below the ballast base / Orange line).
+
+
