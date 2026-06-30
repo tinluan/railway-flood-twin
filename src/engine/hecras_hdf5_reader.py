@@ -783,7 +783,8 @@ def rasterize_flow_to_bitmap(
     # and carry a Geometry group that was copied from the g01.hdf.  If that is
     # missing (older format), fall back to the sibling geometry file.
     geom_hdf = hdf5_path
-    _g01_sibling = hdf5_path.parent.parent / "CAPSTONE_JN_L752_PK.g01.hdf"
+    # g01.hdf lives in the same directory as the plan .hdf file
+    _g01_sibling = hdf5_path.parent / "CAPSTONE_JN_L752_PK.g01.hdf"
     if _g01_sibling.exists():
         import h5py as _h5_probe
         with _h5_probe.File(str(hdf5_path), 'r') as _fp:
