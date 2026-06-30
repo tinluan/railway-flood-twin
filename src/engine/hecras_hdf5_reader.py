@@ -678,6 +678,8 @@ def extract_downsampled_flow_data(
         ze_path   = f"{_GEOM_2D}/{FA_NAME}/Cells Minimum Elevation"
         ws_path   = f"{_2D_FA}/{FA_NAME}/Water Surface"
 
+        if ws_path not in f:
+            raise KeyError("Water Surface results not found in HDF5. The HEC-RAS simulation may be incomplete or was stopped early.")
         wse_row   = f[ws_path][timestep_idx, :]   # (N,) — read only one row
 
         # Read Face Velocity and cell-face mapping indices if available
@@ -843,6 +845,8 @@ def rasterize_flow_to_bitmap(
         timestamp = timestamps[timestep_idx]
 
         ws_path = f"{_2D_FA}/{FA_NAME}/Water Surface"
+        if ws_path not in f:
+            raise KeyError("Water Surface results not found in HDF5. The HEC-RAS simulation may be incomplete or was stopped early.")
         wse_row = f[ws_path][timestep_idx, :]
 
         # Load values based on variable
