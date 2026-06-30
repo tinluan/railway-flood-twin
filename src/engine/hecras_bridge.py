@@ -82,6 +82,7 @@ Example Usage:
 """
 
 import win32com.client
+import pythoncom
 import os
 import json
 import time
@@ -107,6 +108,8 @@ class HECRASBridge:
         """Create a COM connection to HEC-RAS Controller."""
         if self._rc is not None:
             return
+        # Initialize COM on the current thread (required for Streamlit worker threads)
+        pythoncom.CoInitialize()
         self._rc = win32com.client.Dispatch(self.PROG_ID)
         print(f"[HECRASBridge] Connected to {self._rc.HECRASVersion()}")
 
@@ -143,6 +146,12 @@ class HECRASBridge:
         try:
             subprocess.run(["taskkill", "/F", "/IM", "HECRAS.exe"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             print("[HECRASBridge] Leftover HECRAS.exe processes cleaned up successfully.")
+        except Exception:
+            pass
+
+        # Release COM thread state initialized in connect()
+        try:
+            pythoncom.CoUninitialize()
         except Exception:
             pass
 
