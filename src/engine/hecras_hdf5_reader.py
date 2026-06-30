@@ -626,12 +626,20 @@ def extract_downsampled_flow_data(
 
     FA_NAME = None  # will be resolved from the file
 
-    with h5py.File(str(hdf5_path), 'r') as f:
+    geom_hdf = hdf5_path
+    _g01_sibling = hdf5_path.parent / "CAPSTONE_JN_L752_PK.g01.hdf"
+    if _g01_sibling.exists():
+        with h5py.File(str(hdf5_path), 'r') as _fp:
+            if _GEOM_2D not in _fp:
+                geom_hdf = _g01_sibling
 
-        # ── 1. Discover flow area name ──────────────────────────────────
-        fa_attrs = f[f"{_GEOM_2D}/Attributes"][:]
+    # ── 1. Discover flow area name ──────────────────────────────────
+    with h5py.File(str(geom_hdf), 'r') as fg:
+        fa_attrs = fg[f"{_GEOM_2D}/Attributes"][:]
         FA_NAME = fa_attrs[0]['Name'].decode().strip()
-        logger.info(f"Flow area: {FA_NAME}")
+    logger.info(f"Flow area: {FA_NAME}")
+
+    with h5py.File(str(hdf5_path), 'r') as f:
 
         # ── 2. Read timestamps and validate index ───────────────────────
         ts_ds_path = f"{_UTS}/Time Date Stamp"
@@ -666,8 +674,6 @@ def extract_downsampled_flow_data(
         ze_path   = f"{_GEOM_2D}/{FA_NAME}/Cells Minimum Elevation"
         ws_path   = f"{_2D_FA}/{FA_NAME}/Water Surface"
 
-        cell_centers = f[cc_path][:]              # (N, 2) Lambert 93
-        cell_min_elev = f[ze_path][:]             # (N,)
         wse_row   = f[ws_path][timestep_idx, :]   # (N,) — read only one row
 
         # Read Face Velocity and cell-face mapping indices if available
@@ -677,8 +683,17 @@ def extract_downsampled_flow_data(
         fv_path = f"{_2D_FA}/{FA_NAME}/Face Velocity"
         if fv_path in f:
             face_vel_row = f[fv_path][timestep_idx, :]
-            cell_face_info = f[f"{_GEOM_2D}/{FA_NAME}/Cells Face and Orientation Info"][:]
-            cell_face_vals = f[f"{_GEOM_2D}/{FA_NAME}/Cells Face and Orientation Values"][:]
+
+        # Load geometry datasets from geom_hdf
+        with h5py.File(str(geom_hdf), 'r') as fg:
+            cell_centers = fg[cc_path][:]              # (N, 2) Lambert 93
+            cell_min_elev = fg[ze_path][:]             # (N,)
+            if face_vel_row is not None:
+                fo_info_path = f"{_GEOM_2D}/{FA_NAME}/Cells Face and Orientation Info"
+                fo_vals_path = f"{_GEOM_2D}/{FA_NAME}/Cells Face and Orientation Values"
+                if fo_info_path in fg:
+                    cell_face_info = fg[fo_info_path][:]
+                    cell_face_vals = fg[fo_vals_path][:]
 
     # ── 4. Compute water depth ──────────────────────────────────────────
     depth = wse_row - cell_min_elev
