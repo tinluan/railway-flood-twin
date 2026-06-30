@@ -431,16 +431,10 @@ map_overlay_layer = st.sidebar.selectbox(
         "Water Depth",
         "Water Surface Elevation (WSE)",
         "Flow Velocity",
-        "Water Depth (Max)",
-        "Channel Flooding (>0.5m)",
         "None",
     ],
     index=0,
-    help=(
-        "Select the HEC-RAS 2D model variable to show as an overlay on the map. "
-        "'Water Depth (Max)' and 'Channel Flooding (>0.5m)' display the stored "
-        "peak-over-simulation maps, matching RAS Mapper's 'Depth (Max)' layer."
-    )
+    help="Select the HEC-RAS 2D model variable to show as an animated overlay on the map."
 )
 
 map_basemap = st.sidebar.selectbox(
