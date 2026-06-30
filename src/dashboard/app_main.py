@@ -456,10 +456,15 @@ map_basemap = st.sidebar.selectbox(
 # ============================================================
 # Determine timestep count from WSE data source
 if is_real_hecras and wse_results:
-    # Get timestep count from first asset's WSE series
-    first_asset = next(iter(wse_results.values()), {})
-    n_steps = len(first_asset.get("wse_m", []))
-    hecras_timestamps = first_asset.get("timestamps", [])
+    # Find the first dictionary value containing the WSE series (skips string metadata keys like "plan")
+    asset_data = next((v for k, v in wse_results.items() if isinstance(v, dict) and "wse_m" in v), {})
+    n_steps = len(asset_data.get("wse_m", []))
+    
+    # Use global timesteps list if available, otherwise fall back to asset-specific list
+    if isinstance(wse_results.get("timesteps"), list):
+        hecras_timestamps = wse_results["timesteps"]
+    else:
+        hecras_timestamps = asset_data.get("timestamps", [])
 else:
     n_steps = len(df_rain) if len(df_rain) > 0 else 48
     hecras_timestamps = []
