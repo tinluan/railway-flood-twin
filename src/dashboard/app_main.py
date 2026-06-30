@@ -713,7 +713,7 @@ with col1:
         hdf5_plan_files = {
             "Active Simulation (Latest Recomputed)": paths.RAW.parent / "hec-ras" / "CAPSTONE_JN_L752_PK.p02.hdf",
             "P01: R100_1HR (100mm rainfall storm, 1h)": paths.RAW.parent / "hec-ras" / "CAPSTONE_JN_L752_PK.p01.hdf",
-            "P02: 21SEP2025 (Historical event, 21h)": paths.RAW.parent / "hec-ras" / "CAPSTONE_JN_L752_PK.p02.hdf",
+            "P02: 21SEP2025 (Historical event, 21h)": paths.RAW.parent / "hec-ras" / "21092025" / "PostProcessing.hdf",
             "P02_DEMO: Synthetic Demonstration Storm": paths.RAW.parent / "hec-ras" / "21092025" / "PostProcessing_demo.hdf",
         }
         hdf5_path = hdf5_plan_files.get(selected_plan)
