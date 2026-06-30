@@ -718,6 +718,24 @@ with col1:
         }
         hdf5_path = hdf5_plan_files.get(selected_plan)
 
+        # Automated snapshot fallback: if the active simulation HDF5 is missing or incomplete,
+        # fall back to the snapshot HDF5 file if available.
+        if selected_plan == "Active Simulation (Latest Recomputed)" and hdf5_path is not None:
+            import h5py
+            is_valid = False
+            if hdf5_path.exists():
+                try:
+                    with h5py.File(str(hdf5_path), 'r') as _f:
+                        if "Results" in _f:
+                            is_valid = True
+                except Exception:
+                    pass
+            if not is_valid:
+                snapshot_path = hdf5_path.with_suffix(".snapshot.hdf")
+                if snapshot_path.exists():
+                    hdf5_path = snapshot_path
+                    st.sidebar.info("Using active simulation snapshot file.")
+
         # Build overlay layer based on sidebar choice
         wse_min_val = None
         wse_max_val = None
