@@ -396,7 +396,6 @@ else:
         "Active Simulation (Latest Recomputed)",
         "P02: 21SEP2025 (Historical event, 21h)",
         "P01: R100_1HR (100mm rainfall storm, 1h)",
-        "synthetic",
     ]
     selected_plan = st.sidebar.selectbox(
         "Simulation Plan",
