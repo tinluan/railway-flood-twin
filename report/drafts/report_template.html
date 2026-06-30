@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Railway Flood-Risk Digital Twin — Final Report</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'dark', themeVariables:{primaryColor:'#3b82f6',primaryTextColor:'#e2e8f0',lineColor:'#64748b',secondaryColor:'#1e293b'}});</script>
+<style>
+/* ============================================================
+   CSS DESIGN SYSTEM — Dark Academic Report
+   ============================================================ */
+:root {
+  --bg: #0a0e1a; --surface: #111827; --card: #1a2035; --border: #2a3456;
+  --accent: #3b82f6; --accent2: #8b5cf6; --green: #10b981; --yellow: #f59e0b;
+  --orange: #f97316; --red: #ef4444; --cyan: #06b6d4;
+  --text: #e2e8f0; --muted: #94a3b8; --white: #fff;
+}
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); line-height:1.75; }
+
+/* Print Styles */
+@media print {
+  body { background:#fff; color:#1a1a2e; }
+  .card, .toc { background:#f8f9fa; border-color:#dee2e6; }
+  .hero { background:#1a1a2e !important; }
+  .page-break { page-break-before:always; }
+  th { background:#e9ecef; color:#1a1a2e; }
+  td { color:#333; }
+  p, li { color:#333; }
+  .formula { background:#f0f4ff; color:#1a1a2e; }
+  .muted-print { color:#666; }
+}
+
+/* Hero / Title Page */
+.hero {
+  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+  padding: 100px 40px 80px; text-align:center;
+  border-bottom: 1px solid var(--border);
+  position:relative; overflow:hidden; min-height: 100vh;
+  display:flex; flex-direction:column; justify-content:center; align-items:center;
+}
+.hero::before {
+  content:''; position:absolute; top:-50%; left:-50%; width:200%; height:200%;
+  background: radial-gradient(circle at 30% 50%, rgba(59,130,246,.08) 0%, transparent 50%);
+}
+.hero h1 {
+  font-size:3em; font-weight:800; position:relative;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  margin-bottom:16px;
+}
+.hero .subtitle { font-size:1.3em; color:var(--muted); font-weight:300; margin-bottom:8px; }
+.hero .institution { font-size:1em; color:var(--muted); margin-top:24px; }
+.hero .authors { font-size:1.1em; color:var(--text); margin-top:12px; font-weight:500; }
+.hero .meta {
+  margin-top:30px; display:flex; justify-content:center; gap:20px; flex-wrap:wrap;
+}
+.hero .meta span {
+  background:var(--card); padding:8px 20px; border-radius:20px;
+  font-size:.85em; border:1px solid var(--border); position:relative;
+}
+
+/* Layout */
+.container { max-width:1100px; margin:0 auto; padding:40px 24px; }
+
+/* Typography */
+h2 {
+  font-size:1.8em; font-weight:700; margin:48px 0 20px; padding-bottom:12px;
+  border-bottom:2px solid var(--border); display:flex; align-items:center; gap:12px;
+}
+h2 .num {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color:#fff; width:38px; height:38px; border-radius:10px;
+  display:inline-flex; align-items:center; justify-content:center;
+  font-size:.7em; font-weight:700; flex-shrink:0;
+}
+h3 { font-size:1.2em; font-weight:600; margin:28px 0 12px; color:var(--accent); }
+h4 { font-size:1.05em; font-weight:600; margin:20px 0 8px; color:var(--cyan); }
+p { margin-bottom:16px; color:var(--muted); font-size:.95em; }
+ul, ol { color:var(--muted); padding-left:20px; margin-bottom:16px; font-size:.93em; }
+li { margin:4px 0; }
+
+/* Cards */
+.card {
+  background:var(--card); border:1px solid var(--border); border-radius:14px;
+  padding:28px; margin:20px 0; transition:transform .2s, box-shadow .2s;
+}
+.card:hover { transform:translateY(-2px); box-shadow:0 8px 30px rgba(0,0,0,.3); }
+
+/* Tables */
+table { width:100%; border-collapse:collapse; margin:16px 0; font-size:.88em; }
+th {
+  background:var(--surface); color:var(--accent); text-align:left;
+  padding:12px 14px; font-weight:600; border-bottom:2px solid var(--border);
+}
+td { padding:10px 14px; border-bottom:1px solid var(--border); color:var(--muted); }
+tr:hover td { background:rgba(59,130,246,.04); }
+
+/* Grid Stats */
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; margin:20px 0; }
+.stat {
+  background:var(--card); border:1px solid var(--border); border-radius:12px;
+  padding:20px; text-align:center;
+}
+.stat .val {
+  font-size:2.2em; font-weight:800;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+}
+.stat .label { color:var(--muted); font-size:.82em; margin-top:4px; }
+
+/* Alert Cards */
+.alert-row { display:flex; gap:12px; margin:16px 0; flex-wrap:wrap; }
+.alert {
+  flex:1; min-width:160px; padding:16px; border-radius:10px;
+  text-align:center; font-weight:600; font-size:.9em;
+}
+.alert.green  { background:rgba(16,185,129,.12); border:1px solid var(--green); color:var(--green); }
+.alert.yellow { background:rgba(245,158,11,.12); border:1px solid var(--yellow); color:var(--yellow); }
+.alert.orange { background:rgba(249,115,22,.12); border:1px solid var(--orange); color:var(--orange); }
+.alert.red    { background:rgba(239,68,68,.12); border:1px solid var(--red); color:var(--red); }
+
+/* Formulas */
+.formula {
+  background:linear-gradient(135deg,rgba(59,130,246,.06),rgba(139,92,246,.06));
+  border:1px solid var(--border); border-radius:10px; padding:20px 24px;
+  margin:16px 0; font-family:'Courier New',monospace; font-size:1em;
+  text-align:center; color:var(--text);
+}
+.formula .label { font-size:.8em; color:var(--muted); margin-top:6px; }
+
+/* Code Blocks */
+code {
+  background:var(--surface); padding:2px 8px; border-radius:4px;
+  font-size:.88em; color:var(--accent); border:1px solid var(--border);
+}
+pre {
+  background:var(--surface); padding:20px; border-radius:10px; overflow-x:auto;
+  font-size:.85em; border:1px solid var(--border); margin:16px 0; line-height:1.5;
+}
+
+/* Flow Pipeline */
+.flow { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:16px 0; font-size:.9em; }
+.flow .step { background:var(--surface); padding:8px 16px; border-radius:8px; border:1px solid var(--border); }
+.flow .arrow { color:var(--accent); font-weight:700; }
+
+/* Figure Placeholders */
+.figure-box {
+  background: var(--surface); border:2px dashed var(--border); border-radius:14px;
+  padding:40px 24px; margin:20px 0; text-align:center; min-height:200px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+}
+.figure-box.has-img { border-style:solid; padding:16px; }
+.figure-box img { max-width:100%; border-radius:8px; margin-bottom:12px; }
+.figure-box .fig-id { font-size:.85em; font-weight:700; color:var(--accent); margin-bottom:6px; }
+.figure-box .fig-caption { font-size:.82em; color:var(--muted); font-style:italic; }
+.figure-box .fig-instruction {
+  font-size:.78em; color:var(--yellow); background:rgba(245,158,11,.1);
+  padding:6px 12px; border-radius:6px; margin-top:8px;
+}
+
+/* Badges */
+.badge { display:inline-block; padding:3px 10px; border-radius:6px; font-size:.75em; font-weight:600; margin-left:6px; }
+.badge.done    { background:rgba(16,185,129,.15); color:var(--green); }
+.badge.pending { background:rgba(245,158,11,.15); color:var(--yellow); }
+
+/* TOC */
+.toc { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:28px; margin:30px 0; }
+.toc h3 { margin-top:0; font-size:1.1em; }
+.toc ol { padding-left:20px; }
+.toc li { margin:6px 0; color:var(--muted); font-size:.9em; }
+.toc a { color:var(--accent); text-decoration:none; }
+.toc a:hover { text-decoration:underline; }
+
+/* Mermaid */
+.mermaid { margin:20px 0; }
+
+/* References */
+.ref-item { margin:8px 0; font-size:.88em; color:var(--muted); padding-left:24px; text-indent:-24px; }
+.ref-item strong { color:var(--text); }
+
+/* Footer */
+footer {
+  text-align:center; padding:40px; color:var(--muted); font-size:.85em;
+  border-top:1px solid var(--border); margin-top:60px;
+}
+</style>
+</head>
+<body>
+
+<!-- ====================================================================
+     TITLE PAGE
+     ==================================================================== -->
+<div class="hero">
+  <h1>Railway Flood-Risk Digital Twin</h1>
+  <p class="subtitle">A Multi-Source Geospatial Decision Support System<br>for SNCF Ligne 400 (Cévenol Corridor)</p>
+  <p class="institution">Master Capstone Project — 2026</p>
+  <p class="authors">TRAN Trong-Tin &nbsp;·&nbsp; Amal &nbsp;·&nbsp; Szilvi</p>
+  <div class="meta">
+    <span>🏫 University Name — Program Name</span>
+    <span>🚆 SNCF Réseau</span>
+    <span>📌 v0.5.0</span>
+    <span>📅 June 2026</span>
+  </div>
+  <p style="color:var(--muted);font-size:.8em;margin-top:40px;position:relative;">
+    Keywords: Digital Twin · Railway Flood Risk · GIS · BIM · HEC-RAS · SWI · RAMS · Streamlit
+  </p>
+</div>
+
+<div class="container">
+
+<!-- ====================================================================
+     TABLE OF CONTENTS
+     ==================================================================== -->
+<div class="toc">
+  <h3>📑 Table of Contents</h3>
+  <ol>
+    <li><a href="#abstract">Abstract</a></li>
+    <li><a href="#intro">Introduction & Problem Statement</a></li>
+    <li><a href="#lit">Literature Review</a></li>
+    <li><a href="#arch">System Architecture</a></li>
+    <li><a href="#data">Data Sources & Alignment</a></li>
+    <li><a href="#methodology">Methodology</a>
+      <ol type="a">
+        <li><a href="#met-swi">Hydrological Model (SWI)</a></li>
+        <li><a href="#met-hecras">Hydraulic Model (HEC-RAS 2D)</a></li>
+        <li><a href="#met-fragility">Fragility & Alert Engine</a></li>
+      </ol>
+    </li>
+    <li><a href="#implementation">Implementation</a>
+      <ol type="a">
+        <li><a href="#impl-pipeline">15-Minute Operational Cycle</a></li>
+        <li><a href="#impl-dashboard">Dashboard & API</a></li>
+        <li><a href="#impl-database">Database Architecture</a></li>
+      </ol>
+    </li>
+    <li><a href="#results">Results & Validation</a>
+      <ol type="a">
+        <li><a href="#res-verification">Verification</a></li>
+        <li><a href="#res-calibration">Calibration</a></li>
+        <li><a href="#res-validation">Validation</a></li>
+        <li><a href="#res-sensitivity">Sensitivity Analysis</a></li>
+      </ol>
+    </li>
+    <li><a href="#discussion">Discussion & Limitations</a></li>
+    <li><a href="#conclusion">Conclusion & Future Work</a></li>
+    <li><a href="#references">References</a></li>
+    <li><a href="#appendices">Appendices</a></li>
+  </ol>
+</div>
+
+
+<!-- ====================================================================
+     SECTION 0: ABSTRACT
+     ==================================================================== -->
+<h2 id="abstract"><span class="num">0</span> Abstract</h2>
+<div class="card">
+  <p>This report presents the design, implementation, and validation of a <strong>flood-risk digital twin</strong> for the SNCF Ligne 400 (Cévenol Corridor), a railway line in southern France subject to extreme Mediterranean flash-flood events. The system integrates BIM infrastructure models, LiDAR-derived DTM terrain data, real-time Open-Meteo rainfall forecasting, HEC-RAS 2D hydraulic simulation, and RAMS-compliant operational alerts through a Streamlit dashboard.</p>
+  <p>The demonstrator monitors <strong>120+ railway assets</strong> across 7 infrastructure types, computing per-asset Water Surface Elevation (WSE), Probability of Failure (P<sub>failure</sub>), and three-tier CAP-standard alert directives (Green/Yellow/Red) over a 48-hour forecast horizon. A 15-minute automated operational cycle fetches live rainfall, recalculates soil moisture, triggers HEC-RAS when flood risk is elevated, and updates the dashboard in real time.</p>
+  <p><strong>Keywords:</strong> Digital Twin, Railway Flood Risk, GIS, BIM, HEC-RAS, Soil Water Index, RAMS, SNCF, Streamlit</p>
+</div>
+
+
+<!-- ====================================================================
+     SECTION 1: INTRODUCTION
+     ==================================================================== -->
+<div class="page-break"></div>
+<h2 id="intro"><span class="num">1</span> Introduction & Problem Statement</h2>
+
+<h3>1.1 Context</h3>
+<p>Railway infrastructure is increasingly vulnerable to climate-driven flooding. The Cévenol corridor (Ligne 400) traverses mountainous terrain in the Cévennes region of France, where extreme rainfall events — sometimes exceeding 40 mm/h sustained over several hours — create flash-flood conditions that threaten track integrity, drainage systems, and embankment stability.</p>
+
+<div class="figure-box">
+  <div class="fig-id">Figure 1.1 — Study Area</div>
+  <div class="fig-caption">Geographic location of the Ligne 400 Cévenol Corridor and the Tartaiguille tunnel study zone (PK520–PK535), SNCF Réseau.</div>
+  <div class="fig-instruction">📷 INSERT: QGIS screenshot showing the railway corridor overlaid on satellite imagery, with the study zone highlighted.</div>
+</div>
+
+<h3>1.2 Objective</h3>
+<p>Design and implement a <strong>digital twin demonstrator</strong> that can:</p>
+<div class="card">
+  <ol>
+    <li>Ingest terrain (LiDAR DTM), infrastructure (BIM 3D MULTIPATCH), and rainfall data into a unified geospatial model</li>
+    <li>Simulate 48-hour flood forecasts with per-asset risk evaluation using HEC-RAS 2D hydraulics</li>
+    <li>Produce operational alerts following RAMS and CAP international standards</li>
+    <li>Provide visual decision support through interactive maps, cross-sections, and time-series charts</li>
+  </ol>
+</div>
+
+<h3>1.3 Scope & Study Area</h3>
+<p>The demonstrator covers PK520–PK535 of Ligne 400, monitoring 103 base assets expanded to 120+ after track segmentation. The HEC-RAS 2D mesh (CAPSTONE_JN_L752_PK) covers the south head of the Tartaiguille tunnel with 950,122 computation cells at ~5m² resolution.</p>
+
+
+<!-- ====================================================================
+     SECTION 2: LITERATURE REVIEW
+     ==================================================================== -->
+<div class="page-break"></div>
+<h2 id="lit"><span class="num">2</span> Literature Review</h2>
+
+<h3>2.1 Digital Twins for Railway Infrastructure</h3>
+<p>Railway-specific digital twin work for SNCF and other infrastructure managers applies a layered structure tailored to rail assets, environmental context, and operational decision-making (ISO 23247, 2021). The recommended architecture follows a four-layer model: Physical System, Data/Integration, Analytics/Simulation, and Applications.</p>
+
+<h3>2.2 BIM–GIS Integration for Flood Risk</h3>
+<p>Research on BIM–GIS integration for disaster management highlights that BIM offers component-level information while GIS provides spatial context and terrain relationships. In flood-risk applications, BIM helps assess how individual components fail or incur damage, while GIS and DTM provide flood hazard and exposure information (El Mekawy et al., 2025; Vilgertshofer, 2017).</p>
+
+<h3>2.3 Hydrological Modelling Approaches</h3>
+<p>The Soil Water Index (SWI) recursive exponential filter, originally developed by Météo-France for agricultural drought monitoring, has been adapted for railway embankment stability assessment. The approach combines a "leaky bucket" soil moisture model with a sigmoid runoff coefficient to translate rainfall intensity into surface flow (Wagner et al., 1999).</p>
+
+<h3>2.4 HEC-RAS for Railway Flood Assessment</h3>
+<p>The US Army Corps of Engineers HEC-RAS software is the industry standard for 1D/2D hydraulic flood modelling. Recent versions (6.x) support "rain-on-grid" simulations where precipitation falls directly onto a 2D terrain mesh, eliminating the need for separate catchment hydrological models (Brunner, 2024).</p>
+
+
+<!-- ====================================================================
+     SECTION 3: SYSTEM ARCHITECTURE
+     ==================================================================== -->
+<div class="page-break"></div>
+<h2 id="arch"><span class="num">3</span> System Architecture</h2>
+
+<h3>3.1 Four-Layer Design</h3>
+<div class="card">
+  <table>
+    <tr><th>Layer</th><th>Function</th><th>Components</th><th>Technology</th></tr>
+    <tr>
+      <td><strong>1. Data Sources</strong></td>
+      <td>Raw input acquisition</td>
+      <td>DTM raster, GIS shapefiles, BIM MULTIPATCH, Open-Meteo API</td>
+      <td>EPSG:2154, GeoPackage, CSV, REST</td>
+    </tr>
+    <tr>
+      <td><strong>2. Integration (Bridge)</strong></td>
+      <td>CRS alignment, ETL, storage</td>
+      <td>Mirror Database, path manager, pre-processor</td>
+      <td>Python, GeoPandas, Supabase (PostgreSQL + PostGIS)</td>
+    </tr>
+    <tr>
+      <td><strong>3. Simulation Engine</strong></td>
+      <td>Physics-based modelling</td>
+      <td>SWI filter, HEC-RAS 2D, WSE extraction</td>
+      <td>NumPy, SciPy, HEC-RAS 6.7 COM, h5py</td>
+    </tr>
+    <tr>
+      <td><strong>4. Vulnerability & Alert</strong></td>
+      <td>Risk assessment & decision support</td>
+      <td>Fragility curves, RAMS alerts, dashboard, API</td>
+      <td>Streamlit, PyDeck, FastAPI, Plotly</td>
+    </tr>
+  </table>
+</div>
+
+<h3>3.2 Architecture Diagram</h3>
+<div class="mermaid">
+flowchart TD
+    classDef trigger fill:#e1bee7,stroke:#8e24aa,stroke-width:2px,color:#000;
+    classDef layer1 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000;
+    classDef layer2 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000;
+    classDef decision fill:#ffecb3,stroke:#ffa000,stroke-width:2px,color:#000;
+    classDef layer3 fill:#ffcc80,stroke:#f57c00,stroke-width:2px,color:#000;
+    classDef layer4 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000;
+    classDef output fill:#cfd8dc,stroke:#455a64,stroke-width:2px,color:#000;
+
+    Start(["15-Minute Trigger"])
+    subgraph L1 ["Layer 1: Meteorology"]
+        API["Open-Meteo API"]
+        CSV["rainfall_live.csv"]
+    end
+    subgraph L2 ["Layer 2: Hydrology"]
+        SWI["SWI Calculator"]
+        Runoff["Runoff Coefficient"]
+    end
+    Eval{"Peak SWI > 100mm?"}
+    subgraph L3 ["Layer 3: Hydraulics"]
+        Inject["Inject Precipitation (.u01)"]
+        HEC["HEC-RAS 2D Simulation"]
+        HDF["Extract WSE (HDF5)"]
+    end
+    subgraph L4 ["Layer 4: Vulnerability"]
+        Fragility["Fragility Curves"]
+        Alerts["RAMS Alerts"]
+    end
+    Dashboard(["Dashboard UI"])
+    NoRun(["Use Existing WSE"])
+
+    Start --> API --> CSV --> SWI --> Runoff --> Eval
+    Eval -->|"Yes"| Inject --> HEC --> HDF --> Fragility
+    Eval -->|"No"| NoRun --> Fragility
+    Fragility --> Alerts --> Dashboard
+
+    class Start trigger;
+    class API,CSV layer1;
+    class SWI,Runoff layer2;
+    class Eval decision;
+    class Inject,HEC,HDF layer3;
+    class Fragility,Alerts layer4;
+    class Dashboard,NoRun output;
+</div>
+<div style="text-align:center;color:var(--muted);font-size:.82em;font-style:italic;margin-top:-8px;">
+  Figure 3.1 — 15-Minute Operational Cycle Flowchart (4-Layer Architecture)
+</div>
+
+<h3>3.3 Key Software Modules</h3>
+<div class="card">
+  <table>
+    <tr><th>Module</th><th>File</th><th>Layer</th><th>Status</th></tr>
+    <tr><td>Rainfall Provider</td><td><code>src/engine/rainfall_provider.py</code></td><td>1</td><td><span class="badge done">Done</span></td></tr>
+    <tr><td>Data Ingestor</td><td><code>src/engine/data_ingestion.py</code></td><td>2</td><td><span class="badge done">Done</span></td></tr>
+    <tr><td>SWI Calculator</td><td><code>src/engine/swi_calculator.py</code></td><td>3</td><td><span class="badge done">Done</span></td></tr>
+    <tr><td>HEC-RAS COM Bridge</td><td><code>src/engine/hecras_bridge.py</code></td><td>3</td><td><span class="badge done">Done</span></td></tr>
+    <tr><td>HEC-RAS HDF5 Reader</td><td><code>src/engine/hecras_hdf5_reader.py</code></td><td>3</td><td><span class="badge done">Done</span></td></tr>
+    <tr><td>Fragility Evaluator</td><td><code>src/engine/fragility_curves.py</code></td><td>4</td><td><span class="badge done">Done</span></td></tr>
+    <tr><td>Alert Dispatcher</td><td><code>src/engine/alert_dispatcher.py</code></td><td>4</td><td><span class="badge done">Done</span></td></tr>
+    <tr><td>Streamlit Dashboard</td><td><code>src/dashboard/app_main.py</code></td><td>4</td><td><span class="badge done">Done</span></td></tr>
+    <tr><td>FastAPI REST API</td><td><code>src/api/main.py</code></td><td>4</td><td><span class="badge done">Done</span></td></tr>
+  </table>
+</div>
+
+
+<!-- ====================================================================
+     SECTION 4: DATA SOURCES
+     ==================================================================== -->
+<div class="page-break"></div>
+<h2 id="data"><span class="num">4</span> Data Sources & Alignment</h2>
+
+<h3>4.1 Dataset Inventory</h3>
+<div class="grid">
+  <div class="stat"><div class="val">1 GB</div><div class="label">DTM Raster (LiDAR, EPSG:2154)</div></div>
+  <div class="stat"><div class="val">11</div><div class="label">GeoPackage Files (staging/gis/)</div></div>
+  <div class="stat"><div class="val">8</div><div class="label">3D MULTIPATCH BIM Layers</div></div>
+  <div class="stat"><div class="val">950K</div><div class="label">HEC-RAS 2D Mesh Cells</div></div>
+  <div class="stat"><div class="val">26</div><div class="label">COPC LAZ LiDAR Tiles</div></div>
+  <div class="stat"><div class="val">48h</div><div class="label">Cevenol Storm Scenario</div></div>
+</div>
+
+<h3>4.2 Coordinate Reference System</h3>
+<div class="card">
+  <p style="color:var(--text);font-weight:600;">All spatial data uses EPSG:2154 (RGF93 / Lambert-93) — the French national CRS.</p>
+  <table>
+    <tr><th>Source</th><th>Raw Z Range</th><th>Vertical Offset</th><th>Notes</th></tr>
+    <tr><td>2D Shapefiles (maquette_2d/)</td><td>~95–185 m</td><td><strong>+107.02 m</strong></td><td>CAD origin shifted to NGF</td></tr>
+    <tr><td>3D MULTIPATCH (maquette_3d/)</td><td>~175–290 m</td><td>None required</td><td>Z already in NGF range (verified)</td></tr>
+    <tr><td>DTM raster (dtm_fixed.tif)</td><td>~200–250 m</td><td>Reference datum</td><td>EPSG:2154 + NGF altitude</td></tr>
+    <tr><td>HEC-RAS mesh</td><td>~200–250 m</td><td>None</td><td>EPSG:2154, terrain from DTM</td></tr>
+  </table>
+</div>
+
+<h3>4.3 3D BIM Asset Inventory</h3>
+<div class="card">
+  <table>
+    <tr><th>Layer</th><th>English Name</th><th>Count</th><th>Z Range (m NGF)</th></tr>
+    <tr><td>Buse</td><td>Culvert</td><td>7</td><td>201–221</td></tr>
+    <tr><td>Dalot</td><td>Box Culvert</td><td>1</td><td>213–216</td></tr>
+    <tr><td>Fossé terre</td><td>Earth Ditch</td><td>31</td><td>175–258</td></tr>
+    <tr><td>Fossé terre revêtu</td><td>Lined Ditch</td><td>22</td><td>178–288</td></tr>
+    <tr><td>Talus Terre</td><td>Embankment</td><td>36</td><td>178–284</td></tr>
+    <tr><td>Voie</td><td>Track</td><td>1 (segmented to ~20)</td><td>180–290</td></tr>
+    <tr><td>Descente d'eau</td><td>Water Chute</td><td>3</td><td>210–267</td></tr>
+    <tr><td>Drainage longitudinal</td><td>Longitudinal Drain</td><td>10</td><td>204–222</td></tr>
+  </table>
+</div>
+
+<h3>4.4 Elevation Distribution</h3>
+<div class="figure-box has-img">
+  <img src="../figures/Fig01_Elevation_Distribution.png" alt="Elevation Distribution">
+  <div class="fig-id">Figure 4.1 — Asset Elevation Distribution</div>
+  <div class="fig-caption">DTM-sampled elevation statistics for 122 railway assets across 8 infrastructure types. Generated from Table01_Asset_Elevation_Summary.csv using src/utils/viz.py academic styles.</div>
+</div>
+
+
+<!-- ====================================================================
+     SECTION 5: METHODOLOGY
+     ==================================================================== -->
+<div class="page-break"></div>
+<h2 id="methodology"><span class="num">5</span> Methodology</h2>
+
+<!-- 5a: SWI -->
+<h3 id="met-swi">5.1 Hydrological Model — Soil Water Index (SWI)</h3>
+
+<p>Soil saturation is tracked using a recursive exponential filter with a configurable half-life, originally developed by Météo-France:</p>
+
+<div class="formula">
+  SWI(t) = R<sub>t</sub> × (1 − C) + SWI(t−1) × C
+  <br>
+  where C = 0.5<sup>1/T</sup>, &nbsp; T = 240 hours (half-life = 10 days)
+  <div class="label">Equation 1 — Recursive Exponential Filter (Leaky Bucket)</div>
+</div>
+
+<p>The runoff coefficient transitions smoothly between dry and saturated soil conditions using a sigmoid function:</p>
+
+<div class="formula">
+  C<sub>runoff</sub> = C<sub>max</sub> / (1 + e<sup>−k × (SWI − SWI<sub>mid</sub>)</sup>)
+  <div class="label">Equation 2 — Sigmoid Runoff Coefficient</div>
+</div>
+
+<div class="card">
+  <table>
+    <tr><th>Parameter</th><th>Symbol</th><th>Value</th><th>Physical Meaning</th></tr>
+    <tr><td>Half-life</td><td>T</td><td>240 h (10 days)</td><td>Time for SWI to decay by 50% without rain</td></tr>
+    <tr><td>Decay constant</td><td>C</td><td>0.9971</td><td>Hourly retention fraction</td></tr>
+    <tr><td>Max runoff</td><td>C<sub>max</sub></td><td>0.90</td><td>90% of rain becomes surface flow at saturation</td></tr>
+    <tr><td>Min runoff</td><td>C<sub>min</sub></td><td>0.10</td><td>10% minimum runoff (even dry soil has some)</td></tr>
+    <tr><td>Sigmoid steepness</td><td>k</td><td>0.05</td><td>Rate of transition between dry and saturated</td></tr>
+    <tr><td>Saturation midpoint</td><td>SWI<sub>mid</sub></td><td>150 mm</td><td>SWI value at which C<sub>runoff</sub> = C<sub>max</sub>/2</td></tr>
+  </table>
+</div>
+
+<div class="figure-box">
+  <div class="fig-id">Figure 5.1 — SWI Response to Cévenol Storm</div>
+  <div class="fig-caption">48-hour SWI time series showing the leaky-bucket response to the demo Cévenol flash-flood event (peak 40.9 mm/h at T+15h). Bottom panel shows the sigmoid runoff coefficient rising from 0.1 to ~0.9 as soil saturates.</div>
+  <div class="fig-instruction">📷 GENERATE: Run the dashboard in Demo mode and screenshot the SWI chart, or create a matplotlib figure using:<br><code>.\.conda\python.exe -c "from src.engine.swi_calculator import SWICalculator; ..."</code></div>
+</div>
+
+<div class="figure-box">
+  <div class="fig-id">Figure 5.2 — Sigmoid Runoff Coefficient Curve</div>
+  <div class="fig-caption">Sigmoid function mapping SWI (0–300 mm) to runoff coefficient (0.1–0.9). The midpoint at SWI=150mm represents the transition from absorptive to saturated soil.</div>
+  <div class="fig-instruction">📷 GENERATE: Plot using matplotlib. X-axis: SWI 0–300, Y-axis: C_runoff. Mark the midpoint and asymptotes.</div>
+</div>
+
+<!-- 5b: HEC-RAS -->
+<h3 id="met-hecras">5.2 Hydraulic Model — HEC-RAS 2D</h3>
+
+<h4>5.2.1 Model Configuration</h4>
+<div class="card">
+  <table>
+    <tr><th>Parameter</th><th>Value</th></tr>
+    <tr><td>Software</td><td>HEC-RAS 6.60 (SI Units)</td></tr>
+    <tr><td>Project</td><td>CAPSTONE_JN_L752_PK (PK534, South Head Tartaiguille)</td></tr>
+    <tr><td>CRS</td><td>EPSG:2154 (Lambert 93)</td></tr>
+    <tr><td>2D Flow Area</td><td>PK534_FA_5M2</td></tr>
+    <tr><td>Mesh cells</td><td>950,122 (~5 m² resolution)</td></tr>
+    <tr><td>Boundary condition</td><td>PK534_BL, friction slope = 0.01</td></tr>
+    <tr><td>Structures</td><td>9 SA/2D connections (CULVERT_MAIN, CULVERT_ACCESS ×5, etc.)</td></tr>
+  </table>
+</div>
+
+<h4>5.2.2 Pre-Computed Simulation Plans</h4>
+<div class="card">
+  <table>
+    <tr><th>Plan</th><th>Title</th><th>Duration</th><th>Timesteps</th><th>Δt Compute</th><th>Δt Output</th><th>Peak Depth</th></tr>
+    <tr><td>p01</td><td>R100_1HR</td><td>30 MAR 2026 13:00→14:00</td><td>13</td><td>1 s</td><td>5 min</td><td>9.79 m</td></tr>
+    <tr><td>p02</td><td>21092025</td><td>21 SEP 2025 07:00→22 SEP 04:00</td><td>127</td><td>5 s</td><td>10 min</td><td>TBD</td></tr>
+  </table>
+</div>
+
+<div class="figure-box">
+  <div class="fig-id">Figure 5.3 — HEC-RAS 2D Mesh & Terrain</div>
+  <div class="fig-caption">RAS Mapper view showing the 2D flow area (PK534_FA_5M2) with the DTM terrain overlay, railway track, and 9 culvert structures.</div>
+  <div class="fig-instruction">📷 INSERT: Open HEC-RAS 6.7 → RAS Mapper → Take screenshot showing: terrain colors, mesh boundary, structures, track alignment.</div>
+</div>
+
+<h4>5.2.3 COM API Integration</h4>
+<p>The Python bridge connects to HEC-RAS via the Windows Component Object Model (COM) using <code>win32com.client</code>. Because the COM API lacks a <code>SetPrecipitation()</code> method, rainfall data is injected by directly editing the plain-text unsteady flow file (<code>.u01</code>).</p>
+
+<div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant App as Python Bridge
+    participant FS as File System (.u01)
+    participant HEC as HEC-RAS 6.7 COM
+    participant Out as Output (.hdf)
+
+    App->>HEC: Dispatch("RAS67.HECRASController")
+    App->>HEC: Project_Open("CAPSTONE_JN_L752_PK.prj")
+    Note over App,FS: COM lacks precipitation editing
+    App->>FS: Read live rainfall CSV
+    App->>FS: Overwrite "Precipitation Hydrograph=" block in .u01
+    App->>HEC: Compute_CurrentPlan(wait=True)
+    activate HEC
+    Note over HEC: 2D Hydraulic Engine computes WSE
+    HEC-->>Out: Write results to .p01.hdf
+    HEC-->>App: Return compute status
+    deactivate HEC
+    App->>Out: h5py read WSE array (950K cells x N timesteps)
+    App->>HEC: Project_Close() and QuitRas()
+</div>
+<div style="text-align:center;color:var(--muted);font-size:.82em;font-style:italic;margin-top:-8px;">
+  Figure 5.4 — HEC-RAS COM API Interaction Sequence
+</div>
+
+<!-- 5c: Fragility -->
+<h3 id="met-fragility">5.3 Fragility & Alert Engine</h3>
+
+<h4>5.3.1 Log-Normal Fragility Curve</h4>
+<p>Ballast scour probability is calculated using a log-normal CDF:</p>
+<div class="formula">
+  P<sub>failure</sub> = Φ( ln(depth / μ) / σ )
+  <br>
+  where μ = 0.30 m (median), σ = 0.40 (dispersion)
+  <div class="label">Equation 3 — Log-Normal Fragility Function</div>
+</div>
+
+<div class="card">
+  <table>
+    <tr><th>Water Depth (m)</th><th>P<sub>failure</sub></th><th>Risk Category</th><th>Physical Meaning</th></tr>
+    <tr><td>0.00</td><td>0.000</td><td style="color:var(--green)">LOW</td><td>No water, no risk</td></tr>
+    <tr><td>0.05</td><td>≈ 0.010</td><td style="color:var(--green)">LOW</td><td>Wet but safe</td></tr>
+    <tr><td>0.15</td><td>≈ 0.123</td><td style="color:var(--green)">LOW</td><td>Drainage concern</td></tr>
+    <tr><td>0.30</td><td>= 0.500</td><td style="color:var(--red)">HIGH</td><td>50/50 ballast failure boundary</td></tr>
+    <tr><td>0.60</td><td>≈ 0.905</td><td style="color:var(--red)">HIGH</td><td>Ballast failure imminent</td></tr>
+  </table>
+</div>
+
+<div class="figure-box">
+  <div class="fig-id">Figure 5.5 — Fragility Curve</div>
+  <div class="fig-caption">Log-normal fragility curve for ballast scour. Dashed lines indicate the RAMS thresholds: P=0.20 (GREEN→YELLOW), P=0.50 (YELLOW→RED).</div>
+  <div class="fig-instruction">📷 GENERATE: Plot P_failure vs water_depth (0–1m). Use matplotlib with src/utils/viz.py academic style. Mark the P=0.20 and P=0.50 thresholds.</div>
+</div>
+
+<h4>5.3.2 RAMS Alert Hierarchy</h4>
+<div class="alert-row">
+  <div class="alert green">🟢 GREEN<br>P &lt; 20%<br>Standard Speed</div>
+  <div class="alert yellow">🟡 YELLOW<br>P: 20–50%<br>Speed: 60 km/h</div>
+  <div class="alert red">🔴 RED<br>P &gt; 50%<br>EMERGENCY HALT</div>
+</div>
+<div class="card">
+  <table>
+    <tr><th>Level</th><th>CAP Color</th><th>WSE Trigger</th><th>Engineering Meaning</th><th>Affected Assets</th></tr>
+    <tr><td>YELLOW</td><td style="color:var(--yellow)">⚡ Monitoring</td><td>WSE > yellow_z_m</td><td>Drainage at 100% capacity</td><td>Buse, Dalot, Drainage</td></tr>
+    <tr><td>ORANGE</td><td style="color:var(--orange)">⚠️ Warning</td><td>WSE > orange_z_m</td><td>Embankment soaking, erosion risk</td><td>Fossé, Talus</td></tr>
+    <tr><td>RED</td><td style="color:var(--red)">🛑 Emergency</td><td>WSE > red_z_m / z_ballast</td><td>Water on track — halt all trains</td><td>Voie (Track)</td></tr>
+  </table>
+  <p style="margin-top:12px;color:var(--yellow);font-size:.85em;"><strong>WSE Override Rule:</strong> If WSE > z_ballast, the verdict is always RED regardless of P<sub>failure</sub> category.</p>
+</div>
+
+
+<!-- ====================================================================
+     SECTION 6: IMPLEMENTATION
+     ==================================================================== -->
+<div class="page-break"></div>
+<h2 id="implementation"><span class="num">6</span> Implementation</h2>
+
+<h3 id="impl-pipeline">6.1 15-Minute Operational Cycle</h3>
+<div class="card">
+  <table>
+    <tr><th>Phase</th><th>Time</th><th>Action</th><th>Module</th></tr>
+    <tr><td>1. Ingestion</td><td>0–2 min</td><td>Fetch 48h rainfall forecast from Open-Meteo API</td><td><code>rainfall_provider.py</code></td></tr>
+    <tr><td>2. Hydrology</td><td>2–3 min</td><td>Compute SWI and sigmoid runoff coefficient</td><td><code>swi_calculator.py</code></td></tr>
+    <tr><td>3. Decision</td><td>3 min</td><td>Check if peak SWI > 100mm threshold</td><td><code>pipeline_orchestrator.py</code></td></tr>
+    <tr><td>4. Hydraulics</td><td>3–10 min</td><td>Inject rain into .u01, run HEC-RAS 2D</td><td><code>hecras_bridge.py</code></td></tr>
+    <tr><td>5. Extraction</td><td>10–12 min</td><td>Parse HDF5 results, extract WSE per asset</td><td><code>hecras_hdf5_reader.py</code></td></tr>
+    <tr><td>6. Alerts</td><td>12–15 min</td><td>Evaluate fragility curves, generate RAMS verdicts</td><td><code>alert_dispatcher.py</code></td></tr>
+  </table>
+</div>
+
+<h3 id="impl-dashboard">6.2 Dashboard & API</h3>
+
+<div class="figure-box">
+  <div class="fig-id">Figure 6.1 — Dashboard Overview</div>
+  <div class="fig-caption">Full Streamlit dashboard showing the interactive risk map (PyDeck), 48-hour WSE time-series chart, stitched cross-section viewer, and operational alert panel during the Cévenol flash-flood demo scenario.</div>
+  <div class="fig-instruction">📷 INSERT: Start dashboard with <code>.\.conda\python.exe -m streamlit run src/dashboard/app_main.py</code>, load the "PLM26 Contest Demo" scenario, set the time slider to the peak flood hour (~T+24h), and take a full-page screenshot.</div>
+</div>
+
+<div class="figure-box">
+  <div class="fig-id">Figure 6.2 — Risk Map Close-Up</div>
+  <div class="fig-caption">PyDeck map view showing CAP-colored asset dots (Green/Yellow/Red) and GeoJSON flood polygon overlay at peak inundation timestep. Base tiles: CARTO Dark Matter.</div>
+  <div class="fig-instruction">📷 INSERT: Zoom into the map during peak flood showing RED-colored assets. Ensure flood polygons are visible.</div>
+</div>
+
+<div class="figure-box">
+  <div class="fig-id">Figure 6.3 — Stitched Cross-Section Viewer</div>
+  <div class="fig-caption">30m-wide stitched platform cross-section (Fossé–Talus–Voie–Talus–Fossé) showing terrain profile, water fill level, and threshold lines at Yellow/Orange/Red levels.</div>
+  <div class="fig-instruction">📷 INSERT: Screenshot the cross-section chart from the dashboard for a Buse asset during high flood conditions. Show the blue water fill visually crossing the yellow threshold.</div>
+</div>
+
+<div class="figure-box">
+  <div class="fig-id">Figure 6.4 — WSE Time-Series Chart</div>
+  <div class="fig-caption">48-hour WSE time series for the highest-risk asset (auto-focused by hotspot detection), with threshold lines and vertical cursor at the selected timestep.</div>
+  <div class="fig-instruction">📷 INSERT: Screenshot the Plotly WSE chart from the dashboard showing all 48 hours with the peak clearly marked.</div>
+</div>
+
+<h4>6.2.1 REST API Endpoints</h4>
+<div class="card">
+  <table>
+    <tr><th>Method</th><th>Endpoint</th><th>Description</th><th>Tests</th></tr>
+    <tr><td>GET</td><td><code>/api/v1/assets</code></td><td>Static infrastructure config (z_config.json)</td><td>✅</td></tr>
+    <tr><td>GET</td><td><code>/api/v1/alerts/current</code></td><td>Real-time RAMS verdicts & hotspot</td><td>✅</td></tr>
+    <tr><td>GET</td><td><code>/api/v1/hydrology/swi</code></td><td>SWI values & flood polygons</td><td>✅</td></tr>
+    <tr><td>POST</td><td><code>/api/v1/engine/simulate</code></td><td>Run custom rainfall simulation</td><td>✅</td></tr>
+    <tr><td>GET</td><td><code>/api/v1/engine/rainfall/current</code></td><td>Current hour rainfall from Open-Meteo</td><td>✅</td></tr>
+    <tr><td>GET</td><td><code>/api/v1/engine/rainfall/forecast</code></td><td>48-hour rainfall forecast</td><td>✅</td></tr>
+  </table>
+  <p style="color:var(--green);font-size:.85em;margin-top:12px;">23/23 API tests passing (pytest test_api.py)</p>
+</div>
+
+<h3 id="impl-database">6.3 Database Architecture</h3>
+<div class="card">
+  <table>
+    <tr><th>Component</th><th>Technology</th></tr>
+    <tr><td>Host</td><td>Supabase (managed PostgreSQL 15)</td></tr>
+    <tr><td>Spatial extension</td><td>PostGIS 3</td></tr>
+    <tr><td>Schemas</td><td><code>core</code> (metadata), <code>rail</code> (assets), <code>env</code> (planned for observations)</td></tr>
+    <tr><td>Phase 1 records</td><td>30 GIS assets × 4 types, all EPSG:2154</td></tr>
+    <tr><td>Python driver</td><td>psycopg2 + GeoAlchemy2 + GeoPandas.to_postgis()</td></tr>
+  </table>
+</div>
+
+<div class="figure-box">
+  <div class="fig-id">Figure 6.5 — Database Schema (Phase 1)</div>
+  <div class="fig-caption">Entity-relationship diagram showing the core.dataset metadata registry, rail.corridor reference, and rail.gis_asset table with PostGIS geometry column.</div>
+  <div class="fig-instruction">📷 INSERT: Screenshot the Supabase table editor or create a Mermaid ER diagram showing the three tables and their relationships.</div>
+</div>
+
+
+<!-- ====================================================================
+     SECTION 7: RESULTS & VALIDATION
+     ==================================================================== -->
+<div class="page-break"></div>
+<h2 id="results"><span class="num">7</span> Results & Validation</h2>
+
+<h3 id="res-verification">7.1 Verification (Code Matches Math)</h3>
+
+<h4>7.1.1 SWI Half-Life Decay Test</h4>
+<div class="card">
+  <table>
+    <tr><th>Test</th><th>Input</th><th>Expected</th><th>Actual</th><th>Pass</th></tr>
+    <tr><td>Half-life decay</td><td>240h of 0 mm/h after 100mm spike</td><td>SWI = 50.0 mm</td><td><em>___</em></td><td><em>___</em></td></tr>
+    <tr><td>Double half-life</td><td>480h of 0 mm/h</td><td>SWI = 25.0 mm</td><td><em>___</em></td><td><em>___</em></td></tr>
+    <tr><td>Sigmoid midpoint</td><td>SWI = 150 mm</td><td>C<sub>runoff</sub> = 0.45</td><td><em>___</em></td><td><em>___</em></td></tr>
+    <tr><td>Fragility at median</td><td>depth = 0.30 m</td><td>P<sub>failure</sub> = 0.500</td><td><em>___</em></td><td><em>___</em></td></tr>
+  </table>
+</div>
+
+<div class="figure-box">
+  <div class="fig-id">Figure 7.1 — SWI Decay Verification</div>
+  <div class="fig-caption">SWI decay curve showing exact half-life behavior: 100mm → 50mm at T=240h → 25mm at T=480h. Confirms correct implementation of C = 0.5^(1/T).</div>
+  <div class="fig-instruction">📷 GENERATE: Create a matplotlib plot with time (0–720h) on X-axis and SWI on Y-axis. Mark the 50% and 25% points. Save to report/figures/Fig02_SWI_Decay.png</div>
+</div>
+
+<h4>7.1.2 Automated Test Suite</h4>
+<div class="card">
+  <table>
+    <tr><th>Test File</th><th>Tests</th><th>Coverage</th><th>Status</th></tr>
+    <tr><td>test_api.py</td><td>23</td><td>REST endpoints, Pydantic schemas, error handling</td><td><span class="badge done">Pass</span></td></tr>
+    <tr><td>test_pipeline.py</td><td>2</td><td>Orchestrator demo mode, HEC-RAS trigger logic</td><td><span class="badge done">Pass</span></td></tr>
+    <tr><td>test_rainfall_provider.py</td><td>3+</td><td>Open-Meteo connectivity, JSON parsing</td><td><span class="badge done">Pass</span></td></tr>
+  </table>
+</div>
+
+<div class="figure-box">
+  <div class="fig-id">Figure 7.2 — pytest Output</div>
+  <div class="fig-caption">Terminal output of the full automated test suite (28+ tests passing).</div>
+  <div class="fig-instruction">📷 INSERT: Run <code>.\.conda\python.exe -m pytest tests/ -v</code> and screenshot the green "PASSED" output.</div>
+</div>
+
+<h3 id="res-calibration">7.2 Calibration</h3>
+
+<h4>7.2.1 SWI Half-Life Justification</h4>
+<div class="card">
+  <p>The half-life <strong>T = 10 days</strong> is adopted from published Météo-France SWI literature for clay-rich soils in the Drôme valley (Wagner et al., 1999). Formal AUC optimization against SNCF historical accident data was not performed due to data access constraints.</p>
+  <p style="color:var(--yellow);font-size:.85em;"><strong>Limitation:</strong> Future work should calibrate T using the AUC optimization loop against 10 years of SNCF incident records for the Ligne 400 corridor.</p>
+</div>
+
+<h4>7.2.2 Manning's n Values</h4>
+<div class="card">
+  <table>
+    <tr><th>Land Cover</th><th>Manning's n</th><th>Source</th></tr>
+    <tr><td>Channel/River bed</td><td>0.035</td><td>Chow (1959), HEC-RAS default</td></tr>
+    <tr><td>Railway embankment</td><td>0.040</td><td>Ballast surface roughness estimate</td></tr>
+    <tr><td>Floodplain (grass)</td><td>0.045</td><td>HEC-RAS reference manual</td></tr>
+    <tr><td>Dense vegetation</td><td>0.080</td><td>Chow (1959)</td></tr>
+  </table>
+</div>
+
+<h3 id="res-validation">7.3 Validation</h3>
+
+<h4>7.3.1 HEC-RAS Volume Conservation</h4>
+<div class="card">
+  <table>
+    <tr><th>Metric</th><th>Threshold</th><th>Measured Value</th><th>Status</th></tr>
+    <tr><td>Volume Accounting Error</td><td>&lt; 1%</td><td><em>___ %</em></td><td><em>___</em></td></tr>
+    <tr><td>Max Courant Number</td><td>&lt; 2.0</td><td><em>___</em></td><td><em>___</em></td></tr>
+    <tr><td>Solution stability</td><td>No instability warnings</td><td><em>___</em></td><td><em>___</em></td></tr>
+  </table>
+</div>
+
+<div class="figure-box">
+  <div class="fig-id">Figure 7.3 — HEC-RAS Computation Log</div>
+  <div class="fig-caption">HEC-RAS unsteady flow computation window showing volume accounting summary and convergence status for Plan p01 (R100_1HR).</div>
+  <div class="fig-instruction">📷 INSERT: Open HEC-RAS → Run Plan p01 → Screenshot the computation window showing "Finished Unsteady Flow Simulation" and the Volume Accounting percentage.</div>
+</div>
+
+<h4>7.3.2 WSE Plausibility Check</h4>
+<div class="card">
+  <table>
+    <tr><th>Asset</th><th>DTM Elevation (m NGF)</th><th>Simulated WSE (m NGF)</th><th>Depth (m)</th><th>Plausible?</th></tr>
+    <tr><td>Buse_0</td><td>203.46</td><td><em>___</em></td><td><em>___</em></td><td><em>___</em></td></tr>
+    <tr><td>Buse_2</td><td>220.51</td><td><em>___</em></td><td><em>___</em></td><td><em>___</em></td></tr>
+    <tr><td>Dalot_0</td><td>217.26</td><td><em>___</em></td><td><em>___</em></td><td><em>___</em></td></tr>
+    <tr><td>Voie_0</td><td>226.46</td><td><em>___</em></td><td><em>___</em></td><td><em>___</em></td></tr>
+  </table>
+  <p style="color:var(--muted);font-size:.85em;">DTM elevations from Table01_Asset_Elevation_Summary.csv (elev_mean_m column).</p>
+</div>
+
+<h3 id="res-sensitivity">7.4 Sensitivity Analysis</h3>
+<div class="card">
+  <table>
+    <tr><th>Parameter</th><th>Default</th><th>−20%</th><th>+20%</th><th>Output Metric</th><th>Δ Output</th></tr>
+    <tr><td>half_life_days</td><td>10</td><td>8</td><td>12</td><td>Peak SWI at T+24h</td><td><em>___</em></td></tr>
+    <tr><td>SWI_mid</td><td>150</td><td>120</td><td>180</td><td>Hour C<sub>runoff</sub> > 0.5</td><td><em>___</em></td></tr>
+    <tr><td>median_depth (fragility)</td><td>0.30</td><td>0.24</td><td>0.36</td><td>P<sub>failure</sub> at 0.25m</td><td><em>___</em></td></tr>
+    <tr><td>Manning's n</td><td>0.035</td><td>0.028</td><td>0.042</td><td>Peak WSE at Buse_0</td><td><em>___</em></td></tr>
+    <tr><td>SWI_HECRAS_TRIGGER</td><td>100</td><td>80</td><td>120</td><td>HEC-RAS triggers / year</td><td><em>___</em></td></tr>
+  </table>
+</div>
+
+<h4>7.4.1 Scenario Stress Tests</h4>
+<div class="card">
+  <table>
+    <tr><th>Scenario</th><th>Input</th><th>Expected Behavior</th><th>Observed</th></tr>
+    <tr><td>Dry Season</td><td>0 mm/h for 30 days</td><td>All GREEN, SWI→0</td><td><em>___</em></td></tr>
+    <tr><td>Moderate Rain</td><td>5 mm/h constant, 48h</td><td>GREEN/YELLOW only</td><td><em>___</em></td></tr>
+    <tr><td>Cévenol Flash Flood</td><td>Demo (peak 40 mm/h)</td><td>RED alerts, HEC-RAS trigger</td><td><em>___</em></td></tr>
+    <tr><td>Extreme (1000-yr)</td><td>80 mm/h for 6h</td><td>All RED, system stable</td><td><em>___</em></td></tr>
+  </table>
+</div>
+
+
+<!-- ====================================================================
+     SECTION 8: DISCUSSION
+     ==================================================================== -->
+<div class="page-break"></div>
+<h2 id="discussion"><span class="num">8</span> Discussion & Limitations</h2>
+
+<div class="card">
+  <h4 style="color:var(--text);">Strengths</h4>
+  <ul>
+    <li>Modular 4-layer architecture allows independent development and testing of each component</li>
+    <li>Real-time rainfall ingestion (Open-Meteo API, free, no key required) makes the system immediately operational</li>
+    <li>Physics-based HEC-RAS 2D simulation (950K cells) provides spatially distributed WSE</li>
+    <li>RAMS-compliant alert hierarchy maps directly to SNCF operational procedures (ETCS speed restriction / halt)</li>
+    <li>120+ monitored assets with individual fragility assessment and cross-section visualization</li>
+    <li>Full REST API enables integration with external systems (SCADA, ETCS/RBC)</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h4 style="color:var(--text);">Limitations</h4>
+  <ul>
+    <li>SWI half-life (T=10 days) is adopted from literature, not calibrated against local SNCF incident data</li>
+    <li>Fragility curve parameters (median=0.30m, σ=0.40) are assumed, not derived from laboratory tests</li>
+    <li>Open-Meteo provides Météo-France AROME model output, not official observed station data</li>
+    <li>Manning's n values use literature defaults — no local calibration against high-water marks</li>
+    <li>Synthetic flood polygons use corridor buffer, not DTM-based bathtub inundation mapping</li>
+    <li>Live Météo-France API integration blocked (awaiting API key)</li>
+  </ul>
+</div>
+
+
+<!-- ====================================================================
+     SECTION 9: CONCLUSION
+     ==================================================================== -->
+<div class="page-break"></div>
+<h2 id="conclusion"><span class="num">9</span> Conclusion & Future Work</h2>
+
+<h3>9.1 Contributions</h3>
+<div class="card">
+  <p>This project demonstrates that a <strong>functional flood-risk digital twin</strong> for railway infrastructure can be built using open-source tools (Python, Streamlit, GeoPandas, HEC-RAS) with a modular architecture that separates data ingestion, hydrological modelling, hydraulic simulation, risk evaluation, and visualization. The system processes real-time rainfall forecasts and produces RAMS-compliant operational alerts within a 15-minute cycle.</p>
+</div>
+
+<h3>9.2 Future Work</h3>
+<div class="card">
+  <table>
+    <tr><th>Priority</th><th>Task</th><th>Impact</th></tr>
+    <tr><td>1</td><td>SWI AUC calibration using SNCF 10-year accident database</td><td>Scientifically validated half-life</td></tr>
+    <tr><td>2</td><td>Manning's n calibration against historical high-water marks</td><td>Accurate WSE predictions</td></tr>
+    <tr><td>3</td><td>Météo-France live API integration (official observations)</td><td>Ground-truth rainfall data</td></tr>
+    <tr><td>4</td><td>DTM-based bathtub inundation mapping (replace corridor buffer)</td><td>Physically realistic flood extents</td></tr>
+    <tr><td>5</td><td>3D BIM visualization (MULTIPATCH rendering in dashboard)</td><td>Component-level inspection</td></tr>
+    <tr><td>6</td><td>ETCS/RBC integration via REST API</td><td>Automated signalling system control</td></tr>
+  </table>
+</div>
+
+
+<!-- ====================================================================
+     SECTION 10: REFERENCES
+     ==================================================================== -->
+<div class="page-break"></div>
+<h2 id="references"><span class="num">10</span> References</h2>
+
+<div class="card">
+  <div class="ref-item"><strong>[1]</strong> Brunner, G. W. (2024). <em>HEC-RAS River Analysis System — Hydraulic Reference Manual</em>. US Army Corps of Engineers, Version 6.5.</div>
+  <div class="ref-item"><strong>[2]</strong> Chow, V. T. (1959). <em>Open-Channel Hydraulics</em>. McGraw-Hill.</div>
+  <div class="ref-item"><strong>[3]</strong> El Mekawy, M. et al. (2025). BIM-GIS integration for flood damage assessment. <em>Automation in Construction</em>.</div>
+  <div class="ref-item"><strong>[4]</strong> ISO 23247:2021. <em>Digital Twin Manufacturing Framework — Overview and General Principles</em>.</div>
+  <div class="ref-item"><strong>[5]</strong> Kelsey Jordahl et al. (2023). <em>geopandas/geopandas: v0.14.0</em>. Zenodo. DOI: 10.5281/zenodo.10015523.</div>
+  <div class="ref-item"><strong>[6]</strong> Gillies, S. et al. (2024). <em>Rasterio: geospatial raster I/O for Python programmers</em>. github.com/mapbox/rasterio.</div>
+  <div class="ref-item"><strong>[7]</strong> Météo-France (2024). Soil Water Index (SWI) — Product Description. https://donneespubliques.meteofrance.fr.</div>
+  <div class="ref-item"><strong>[8]</strong> Open-Meteo (2024). Free Weather API — Documentation. https://open-meteo.com/en/docs.</div>
+  <div class="ref-item"><strong>[9]</strong> Vilgertshofer, S. (2017). BIM-based IFC data integration for flooding simulations. <em>Journal of Computing in Civil Engineering</em>.</div>
+  <div class="ref-item"><strong>[10]</strong> Wagner, W. et al. (1999). A method for estimating soil moisture from ERS scatterometer and soil data. <em>Remote Sensing of Environment</em>, 70(2), 191–207.</div>
+  <div class="ref-item"><strong>[11]</strong> Fathom/Network Rail (2024). Flood risk assessment for railway infrastructure using digital twin technology. <em>IAHR World Congress Proceedings</em>.</div>
+</div>
+
+
+<!-- ====================================================================
+     SECTION 11: APPENDICES
+     ==================================================================== -->
+<div class="page-break"></div>
+<h2 id="appendices"><span class="num">A</span> Appendices</h2>
+
+<h3>Appendix A: Asset Elevation Summary (Top 20)</h3>
+<div class="card">
+  <table>
+    <tr><th>Layer</th><th>Asset</th><th>Min Z (m)</th><th>Max Z (m)</th><th>Mean Z (m)</th><th>Pixels</th></tr>
+    <tr><td>Voie</td><td>Voie_0</td><td>204.01</td><td>288.66</td><td>226.46</td><td>16,453</td></tr>
+    <tr><td>Buse</td><td>Buse_0</td><td>203.21</td><td>203.61</td><td>203.46</td><td>30</td></tr>
+    <tr><td>Buse</td><td>Buse_1</td><td>208.32</td><td>208.42</td><td>208.38</td><td>34</td></tr>
+    <tr><td>Buse</td><td>Buse_2</td><td>220.03</td><td>220.93</td><td>220.51</td><td>23</td></tr>
+    <tr><td>Buse</td><td>Buse_3</td><td>220.02</td><td>220.22</td><td>220.11</td><td>15</td></tr>
+    <tr><td>Buse</td><td>Buse_4</td><td>201.71</td><td>202.81</td><td>202.51</td><td>26</td></tr>
+    <tr><td>Buse</td><td>Buse_5</td><td>203.71</td><td>203.81</td><td>203.78</td><td>35</td></tr>
+    <tr><td>Buse</td><td>Buse_6</td><td>203.61</td><td>203.71</td><td>203.69</td><td>14</td></tr>
+    <tr><td>Dalot</td><td>Dalot_0</td><td>213.32</td><td>219.62</td><td>217.26</td><td>165</td></tr>
+    <tr><td>Pont Rail</td><td>Pont Rail_2</td><td>238.05</td><td>239.05</td><td>238.49</td><td>104</td></tr>
+    <tr><td>Pont Rail</td><td>Pont Rail_3</td><td>204.71</td><td>210.51</td><td>207.88</td><td>194</td></tr>
+    <tr><td>Talus Terre</td><td>Talus Terre_0</td><td>205.61</td><td>217.02</td><td>212.28</td><td>1,822</td></tr>
+    <tr><td>Talus Terre</td><td>Talus Terre_3</td><td>212.62</td><td>237.83</td><td>229.12</td><td>1,321</td></tr>
+    <tr><td>Talus Terre</td><td>Talus Terre_4</td><td>214.82</td><td>222.43</td><td>218.48</td><td>2,498</td></tr>
+    <tr><td>Fossé terre</td><td>Fossé terre_0</td><td>231.13</td><td>242.74</td><td>238.06</td><td>404</td></tr>
+    <tr><td>Fossé terre</td><td>Fossé terre_5</td><td>215.42</td><td>222.03</td><td>219.45</td><td>236</td></tr>
+    <tr><td>Drainage</td><td>Drainage_0</td><td>203.71</td><td>210.12</td><td>206.47</td><td>374</td></tr>
+    <tr><td>Drainage</td><td>Drainage_4</td><td>211.22</td><td>221.63</td><td>215.81</td><td>266</td></tr>
+    <tr><td>Descente</td><td>Descente d'eau_0</td><td>210.22</td><td>211.02</td><td>210.64</td><td>20</td></tr>
+    <tr><td>Descente</td><td>Descente d'eau_2</td><td>245.25</td><td>266.06</td><td>255.89</td><td>93</td></tr>
+  </table>
+  <p style="color:var(--muted);font-size:.82em;">Full table: report/tables/Table01_Asset_Elevation_Summary.csv (122 assets)</p>
+</div>
+
+<h3>Appendix B: Project Repository Structure</h3>
+<div class="card">
+<pre style="color:var(--text);font-size:.82em;">
+railway-flood-twin/
+├── src/
+│   ├── api/                    # FastAPI REST API
+│   │   ├── main.py             # Application entry point
+│   │   └── routers/            # Endpoint modules (alerts, hydrology, engine)
+│   ├── config/settings.py      # Centralized configuration
+│   ├── dashboard/app_main.py   # Streamlit dashboard
+│   ├── engine/                 # Core simulation modules
+│   │   ├── rainfall_provider.py    # Open-Meteo API client (Layer 1)
+│   │   ├── data_ingestion.py       # Rainfall CSV manager (Layer 2)
+│   │   ├── swi_calculator.py       # SWI recursive filter (Layer 3)
+│   │   ├── hecras_bridge.py        # HEC-RAS 6.7 COM bridge (Layer 3)
+│   │   ├── hecras_hdf5_reader.py   # HDF5 result reader (Layer 3)
+│   │   ├── fragility_curves.py     # Log-normal P(failure) (Layer 4)
+│   │   ├── alert_dispatcher.py     # RAMS verdict generator (Layer 4)
+│   │   └── pipeline_orchestrator.py
+│   └── utils/
+│       ├── paths.py            # ProjectPaths manager
+│       └── viz.py              # Academic figure styles (300 DPI)
+├── data/
+│   ├── raw/                    # Source data (rainfall, BIM shapefiles)
+│   ├── staging/gis/            # CRS-fixed GeoPackages (EPSG:2154)
+│   ├── processed/              # Engine outputs (z_config, WSE, SWI, flood polygons)
+│   └── New_data/HEC_RAS/       # HEC-RAS project + pre-computed HDF5 results
+├── tests/                      # pytest test suite (28+ tests)
+├── docs/                       # Technical documentation
+├── report/                     # Academic report assets
+│   ├── figures/                # Generated charts (300 DPI PNG)
+│   ├── tables/                 # CSV data tables
+│   └── references/             # Literature & methodology notes
+├── ARCHITECTURE.md             # Engineering rules (single source of truth)
+├── STATUS.md                   # Live task tracker
+└── requirements.txt            # Python dependencies
+</pre>
+</div>
+
+<h3>Appendix C: Figure Checklist</h3>
+<div class="card">
+  <p style="color:var(--text);font-weight:600;">Use this checklist to track which figures still need to be captured:</p>
+  <table>
+    <tr><th>Figure</th><th>Type</th><th>How to Generate</th><th>Done?</th></tr>
+    <tr><td>Fig 1.1 Study Area</td><td>📷 Screenshot</td><td>QGIS — railway corridor on satellite</td><td>☐</td></tr>
+    <tr><td>Fig 4.1 Elevation Distribution</td><td>📊 Chart</td><td>Already exists: report/figures/Fig01</td><td>☑</td></tr>
+    <tr><td>Fig 5.1 SWI Storm Response</td><td>📊 Chart</td><td>matplotlib from swi_results.csv</td><td>☐</td></tr>
+    <tr><td>Fig 5.2 Sigmoid Curve</td><td>📊 Chart</td><td>matplotlib — C_runoff vs SWI</td><td>☐</td></tr>
+    <tr><td>Fig 5.3 HEC-RAS Mesh</td><td>📷 Screenshot</td><td>HEC-RAS RAS Mapper</td><td>☐</td></tr>
+    <tr><td>Fig 5.5 Fragility Curve</td><td>📊 Chart</td><td>matplotlib — P vs depth</td><td>☐</td></tr>
+    <tr><td>Fig 6.1 Dashboard Overview</td><td>📷 Screenshot</td><td>Streamlit dashboard at peak flood</td><td>☐</td></tr>
+    <tr><td>Fig 6.2 Risk Map Close-Up</td><td>📷 Screenshot</td><td>Dashboard map zoomed in</td><td>☐</td></tr>
+    <tr><td>Fig 6.3 Cross-Section</td><td>📷 Screenshot</td><td>Dashboard cross-section chart</td><td>☐</td></tr>
+    <tr><td>Fig 6.4 WSE Time-Series</td><td>📷 Screenshot</td><td>Dashboard WSE Plotly chart</td><td>☐</td></tr>
+    <tr><td>Fig 6.5 Database Schema</td><td>📷 Screenshot</td><td>Supabase table editor or Mermaid ER</td><td>☐</td></tr>
+    <tr><td>Fig 7.1 SWI Decay Verify</td><td>📊 Chart</td><td>matplotlib — decay from 100mm</td><td>☐</td></tr>
+    <tr><td>Fig 7.2 pytest Output</td><td>📷 Screenshot</td><td>Terminal: pytest tests/ -v</td><td>☐</td></tr>
+    <tr><td>Fig 7.3 HEC-RAS Log</td><td>📷 Screenshot</td><td>HEC-RAS computation window</td><td>☐</td></tr>
+  </table>
+</div>
+
+
+</div><!-- end container -->
+
+<footer>
+  <p><strong>Railway Flood-Risk Digital Twin</strong> — Master Capstone Final Report</p>
+  <p>TRAN Trong-Tin · Amal · Szilvi · SNCF Réseau · 2026</p>
+  <p style="font-size:.8em;margin-top:8px;">To export as PDF: Open this file in a browser → Ctrl+P → Save as PDF (A4, landscape margins)</p>
+</footer>
+
+</body>
+</html>

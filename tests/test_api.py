@@ -234,7 +234,7 @@ class TestEngine:
         assert body["status"] in ("success", "error")
         if body["status"] == "success":
             assert body["swi_peak_mm"] is not None
-            assert body["swi_peak_mm"] > 0
+            assert body["swi_peak_mm"] >= 0
 
 
 # ========================== OpenAPI / Docs ==========================

@@ -124,9 +124,11 @@ async def get_swi(
 @router.get(
     "/flood-polygons/{timestep}",
     response_model=FloodPolygonResponse,
-    summary="Get flood polygon for a timestep",
-    description="Returns the synthetic inundation GeoJSON FeatureCollection "
-                "for a given timestep (0-47 for the 48h Cevenol scenario).",
+    summary="Get flood corridor polygon for a timestep (bathtub approximation)",
+    description="Returns the estimated flood corridor GeoJSON FeatureCollection "
+                "for a given timestep (0-47 for the 48h Cevenol scenario). "
+                "NOTE: These polygons use a corridor buffer approximation "
+                "(bathtub model), not physics-based HEC-RAS 2D flood boundaries.",
 )
 async def get_flood_polygon(timestep: int):
     flood_data = _load_flood_polygons()
@@ -143,8 +145,9 @@ async def get_flood_polygon(timestep: int):
 
 @router.get(
     "/flood-polygons",
-    summary="List available flood timesteps",
-    description="Returns metadata about available flood polygon timesteps.",
+    summary="List available flood corridor timesteps",
+    description="Returns metadata about available flood corridor polygon timesteps. "
+                "Polygons are generated using corridor buffer approximation.",
 )
 async def list_flood_timesteps():
     flood_data = _load_flood_polygons()

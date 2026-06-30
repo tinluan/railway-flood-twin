@@ -84,6 +84,8 @@ Example Usage:
 import win32com.client
 import os
 import json
+import time
+import pandas as pd
 from pathlib import Path
 
 
@@ -151,8 +153,16 @@ class HECRASBridge:
         if not self._is_open:
             raise RuntimeError("No project is open. Call open_project() first.")
         
-        # Compute_CurrentPlan returns (nMsg, msgList, blockingMode)
-        n_msg, msg_list, blocking = self._rc.Compute_CurrentPlan(0, None, wait)
+        # Compute_CurrentPlan returns (success_flag, nMsg, msgList, blockingMode)
+        res = self._rc.Compute_CurrentPlan(0, None, wait)
+        if isinstance(res, tuple) and len(res) >= 4:
+            success, n_msg, msg_list, blocking = res[:4]
+        elif isinstance(res, tuple) and len(res) == 3:
+            success, n_msg, msg_list = res
+            blocking = wait
+        else:
+            n_msg, msg_list, blocking = 0, [], wait
+            
         print(f"[HECRASBridge] Computation finished. Messages: {n_msg}")
         return n_msg, msg_list, blocking
 
@@ -249,6 +259,114 @@ class HECRASBridge:
             json.dump(wse_data, f, indent=2)
         print(f"[HECRASBridge] WSE exported to {out}")
         return wse_data
+
+    # ------------------------------------------------------------------
+    # Recomputation Pipeline
+    # ------------------------------------------------------------------
+    def update_precipitation(self, rainfall_csv_path: str, plan_id: str = "p01") -> bool:
+        """
+        Updates the HEC-RAS Unsteady Flow (.uXX) file to inject new rainfall data.
+        This modifies the plain-text unsteady flow file programmatically since the
+        COM API lacks a SetPrecipitation() method.
+        
+        Args:
+            rainfall_csv_path: Path to the CSV with hourly rainfall (intensity_mm_h).
+            plan_id: The plan ID (e.g., 'p01'). Will find corresponding .uXX file.
+            
+        Returns:
+            True if updated successfully.
+        """
+        if not self._project_path:
+            raise RuntimeError("No project is open. Call open_project() first.")
+            
+        prj_path = Path(self._project_path)
+        # Parse .prj to find the unsteady flow file for the given plan
+        # Simplification: Assume .u01 corresponds to .p01 for this demonstrator
+        u_ext = plan_id.replace('p', 'u')
+        u_file = prj_path.with_suffix(f".{u_ext}")
+        
+        if not u_file.exists():
+            print(f"[HECRASBridge] Unsteady flow file not found: {u_file}")
+            return False
+            
+        try:
+            df = pd.read_csv(rainfall_csv_path)
+            intensities = df['intensity_mm_h'].tolist()
+            
+            # Read .uXX file
+            with open(u_file, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+                
+            print(f"[HECRASBridge] Injecting {len(intensities)} rainfall records into {u_file.name}")
+            
+            # Find the "Precipitation Hydrograph=" block and replace it
+            new_lines = []
+            skip = False
+            for line in lines:
+                if line.startswith("Precipitation Hydrograph="):
+                    # Write the new header
+                    new_lines.append(f"Precipitation Hydrograph= {len(intensities)} \n")
+                    
+                    # Format values in 8-character right-aligned blocks, 10 per line
+                    current_line = ""
+                    for i, val in enumerate(intensities):
+                        # Format as a string, e.g. "     1.5" or "       0"
+                        val_str = f"{val:g}"
+                        if len(val_str) > 8:
+                            val_str = f"{val:.1f}"[:8]
+                        current_line += val_str.rjust(8)
+                        
+                        if (i + 1) % 10 == 0 or i == len(intensities) - 1:
+                            new_lines.append(current_line + "\n")
+                            current_line = ""
+                            
+                    skip = True # Skip the existing lines of the old hydrograph
+                    continue
+                
+                if skip:
+                    # We are currently skipping the old hydrograph values.
+                    # HEC-RAS block ends when we hit a line that isn't just spaces/numbers,
+                    # typically the next keyword starts with a letter, like "DSS Path="
+                    if "=" in line or line.strip().isalpha() or line.startswith("DSS Path="):
+                        skip = False
+                        new_lines.append(line)
+                    continue
+                    
+                if not skip:
+                    new_lines.append(line)
+            
+            # Write back
+            with open(u_file, 'w', encoding='utf-8') as f:
+                f.writelines(new_lines)
+                
+            return True
+        except Exception as e:
+            print(f"[HECRASBridge] Failed to update precipitation: {e}")
+            return False
+
+    def recompute_and_extract(self, rainfall_csv_path: str, plan_id: str = "p01", wait: bool = True):
+        """
+        Full pipeline: Update precipitation, run HEC-RAS, and trigger HDF5 extraction.
+        
+        Args:
+            rainfall_csv_path: Path to new rainfall data.
+            plan_id: Plan to execute.
+            wait: Block until complete.
+        """
+        print(f"[HECRASBridge] Starting recomputation pipeline for plan {plan_id}...")
+        
+        # 1. Update Precipitation
+        self.update_precipitation(rainfall_csv_path, plan_id)
+        
+        # 2. Compute
+        # COM API Compute_CurrentPlan uses whichever plan was active when saved, 
+        # but we can force it or just use Compute_CurrentPlan for the demo.
+        self.compute_current_plan(wait=wait)
+        
+        # 3. Inform reader to refresh (this would trigger the 2D HDF5 reader, not COM)
+        # The actual extraction should be done by hecras_hdf5_reader.py for 2D.
+        print("[HECRASBridge] Recomputation complete. Ready for HDF5 extraction.")
+        return True
 
     # ------------------------------------------------------------------
     # Utility

@@ -12,7 +12,7 @@ Architecture Position (Layer 3 — Simulation Engine):
 
 Scientific Formulas (SNCF Standard):
     SWI Leaky Bucket:
-        SWI(t) = Rt * (1 - C) + SWI(t-1) * C
+        SWI(t) = Rt + SWI(t-1) * C
         C = 0.5 ^ (1 / T)                    # T in hours (half_life_days * 24)
         SWI(0) = 0                            # starts dry
         Rt = hourly rainfall intensity (mm/h)
@@ -68,10 +68,11 @@ import os
 import numpy as np
 import pandas as pd
 import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 # Import our central path manager
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from paths import RAW_DATA, PROCESSED_DATA
+from src.utils.paths import paths
 
 class SWICalculator:
     """Computes Soil Water Index and Runoff Coefficients using SNCF standards."""
@@ -89,22 +90,23 @@ class SWICalculator:
 
     def compute_swi_recursive(self, rainfall_series):
         """
-        Formula: SWI(t) = Rt * (1 - C) + SWI(t-1) * C
+        Formula: SWI(t) = Rt + SWI(t-1) * C
         """
         swi_values = []
         current_swi = 0
         
         for rt in rainfall_series:
-            current_swi = rt * (1 - self.C) + current_swi * self.C
+            # Correct formula: SWI(t) = Rt + SWI(t-1) * C
+            current_swi = rt + current_swi * self.C
             swi_values.append(current_swi)
             
         return swi_values
 
     def calculate_runoff_coefficient(self, swi):
         """
-        Sigmoid Formula: C_runoff = C_max / (1 + e^(-k * (SWI - SWI_mid)))
+        Sigmoid Formula: C_runoff = C_min + (C_max - C_min) / (1 + e^(-k * (SWI - SWI_mid)))
         """
-        return self.C_max / (1 + np.exp(-self.k * (swi - self.SWI_mid)))
+        return self.C_min + (self.C_max - self.C_min) / (1 + np.exp(-self.k * (swi - self.SWI_mid)))
 
     def process_corridor_risk(self, rainfall_file):
         """Full pipeline: Rain -> SWI -> Runoff %."""
@@ -120,14 +122,14 @@ class SWICalculator:
         # 3. Active Runoff (mm)
         df['active_runoff_mm'] = df['intensity_mm_h'] * df['runoff_coeff']
         
-        output_path = PROCESSED_DATA / "swi_results.csv"
+        output_path = paths.PROCESSED / "swi_results.csv"
         df.to_csv(output_path, index=False)
         print(f"Hydrology results saved to {output_path}")
         return df
 
 if __name__ == "__main__":
     # Test with demo data from ingestion module
-    rain_file = RAW_DATA / "rainfall_Ligne_400.csv"
+    rain_file = paths.RAW / "rainfall_Ligne_400.csv"
     if rain_file.exists():
         calc = SWICalculator(half_life_days=10)
         calc.process_corridor_risk(rain_file)

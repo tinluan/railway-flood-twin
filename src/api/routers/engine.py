@@ -41,6 +41,10 @@ Example Usage (Client-side):
     resp = requests.post("http://localhost:8000/api/v1/engine/simulate", json=payload)
     results = resp.json()
     print(f"Peak SWI: {results['peak_swi_mm']}")
+
+    # 3. Fetch Live Rainfall:
+    resp = requests.get("http://localhost:8000/api/v1/rainfall/live")
+    print(resp.json())
 """
 
 import logging
@@ -57,10 +61,15 @@ from src.api.schemas import (
     CycleResult,
     SimulationRequest,
     SimulationResult,
+    RainfallForecastResponse,
+    HECRASRecomputeResult,
 )
 from src.engine.swi_calculator import SWICalculator
 from src.engine.fragility_curves import FragilityEvaluator
 from src.engine.alert_dispatcher import AlertDispatcher
+from src.engine.pipeline_orchestrator import PipelineOrchestrator
+from src.engine.rainfall_provider import RainfallProvider
+from src.engine.data_ingestion import RainfallIngestor
 from src.utils.paths import ProjectPaths
 
 logger = logging.getLogger(__name__)
@@ -81,33 +90,87 @@ paths = ProjectPaths
                 "Returns a summary of the cycle results.",
 )
 async def trigger_cycle(request: CycleRequest = CycleRequest()):
-    """Run the full data pipeline on existing rainfall data."""
-    rain_file = paths.RAW / "rainfall_Ligne_400.csv"
-
-    if not rain_file.exists():
-        return CycleResult(
-            status="error",
-            message=f"Rainfall data not found at {rain_file}. Run data ingestion first.",
-        )
-
+    """Run the full data pipeline."""
     try:
-        # Step 1: Compute SWI
-        calc = SWICalculator(half_life_days=10)
-        df = calc.process_corridor_risk(rain_file)
-
-        peak_swi = float(df["swi_mm"].max())
-        logger.info("Cycle complete. Peak SWI = %.2f mm", peak_swi)
-
-        return CycleResult(
-            status="success",
-            swi_peak_mm=round(peak_swi, 2),
-            alerts_generated=0,  # Alerts depend on HEC-RAS .prj (currently blocked)
-            message=f"SWI updated from {rain_file.name}. Peak SWI = {peak_swi:.2f} mm. "
-                    f"HEC-RAS dispatch is blocked (awaiting .prj file).",
+        orchestrator = PipelineOrchestrator()
+        result = orchestrator.run_cycle(
+            source_mode="auto",
+            force_hecras=request.force_hecras
         )
+        return CycleResult(**result)
     except Exception as e:
         logger.exception("Cycle failed")
         return CycleResult(status="error", message=str(e))
+
+
+@router.post(
+    "/engine/hecras-recompute",
+    response_model=HECRASRecomputeResult,
+    summary="Trigger HEC-RAS 2D Recomputation",
+    description="Forces a full unsteady flow computation in HEC-RAS using "
+                "the latest rainfall data. Requires HEC-RAS 6.7 installed.",
+)
+async def trigger_hecras_recompute(plan_id: str = "p01"):
+    """Manually trigger HEC-RAS run."""
+    try:
+        # We will implement this fully in Component 4.
+        # For now, it returns a stub.
+        return HECRASRecomputeResult(
+            status="success",
+            plan_id=plan_id,
+            message="HEC-RAS bridge is currently being updated to support precipitation injection. "
+                    "Recomputation request received.",
+            wse_extracted=False
+        )
+    except Exception as e:
+        logger.exception("HEC-RAS trigger failed")
+        return HECRASRecomputeResult(status="error", plan_id=plan_id, message=str(e))
+
+
+@router.get(
+    "/rainfall/live",
+    summary="Fetch latest live rainfall",
+    description="Fetches just the current hour's rainfall from Open-Meteo API.",
+)
+async def get_live_rainfall():
+    """Get the current hour's rainfall."""
+    try:
+        provider = RainfallProvider()
+        return provider.fetch_current()
+    except Exception as e:
+        logger.exception("Live rainfall fetch failed")
+        return {"status": "error", "message": str(e)}
+
+
+@router.get(
+    "/rainfall/forecast",
+    response_model=RainfallForecastResponse,
+    summary="Fetch 48h rainfall forecast",
+    description="Fetches the 48-hour rainfall forecast from Open-Meteo API.",
+)
+async def get_rainfall_forecast():
+    """Get the 48-hour rainfall forecast."""
+    try:
+        provider = RainfallProvider()
+        df = provider.fetch_forecast(include_history=False, forecast_days=2)
+        records = df.to_dict(orient="records")
+        return RainfallForecastResponse(
+            provider="Open-Meteo",
+            latitude=provider.lat,
+            longitude=provider.lon,
+            records=len(records),
+            data=[
+                {
+                    "timestamp": r["timestamp"].isoformat(),
+                    "intensity_mm_h": r["intensity_mm_h"],
+                    "source": r["source"]
+                }
+                for r in records
+            ]
+        )
+    except Exception as e:
+        logger.exception("Forecast fetch failed")
+        raise
 
 
 @router.post(

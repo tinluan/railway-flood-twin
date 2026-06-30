@@ -871,7 +871,7 @@ For each timestep, the 2D result array is rasterized into a PNG image (using `nu
 **Cons**: Requires extra rasterization step (~100ms per timestep). Needs the cell coordinates arranged in a spatial grid (or Voronoi-interpolated onto a regular grid).
 
 > [!IMPORTANT]
-> **Preferred target**: Mode B is the goal for the final thesis dashboard demonstration. Mode A (point cloud) is the working baseline already implemented. Mode B should be implemented as F4.6 when thesis writing time allows.
+> **Implementation Status**: Mode B (Raster BitmapLayer) has been successfully implemented. It features dynamic continuous color gradients for Water Depth, WSE, and Flow Velocity, and uses a depth-based alpha threshold (20cm-35cm ramp) to mask out rain-on-mesh sheet flow and highlight actual channels. Additionally, "Water Depth (Max)" and "Channel Flooding (>0.5m)" modes have been added to load stored maximum maps from the HDF5 Summary Output.
 
 ---
 

@@ -14,6 +14,39 @@ from src.utils.paths import paths
 
 st.set_page_config(page_title="RailTwin Flood | SNCF Standard", layout="wide")
 
+import json as _json, base64 as _base64
+
+def _b64_style(style_dict):
+    """Encode a GL style dict as a base64 data-URL (bypasses Streamlit map_style type check)."""
+    return f"data:application/json;base64,{_base64.b64encode(_json.dumps(style_dict).encode()).decode()}"
+
+# ESRI World Hillshade — exact grey terrain basemap used by HEC-RAS Mapper
+_HILLSHADE_STYLE_URL = _b64_style({
+    "version": 8,
+    "sources": {
+        "esri-hillshade": {
+            "type": "raster",
+            "tiles": ["https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}.jpg"],
+            "tileSize": 256,
+            "attribution": "Tiles \u00a9 Esri"
+        }
+    },
+    "layers": [{"id": "esri-hillshade", "type": "raster", "source": "esri-hillshade"}]
+})
+
+# CartoDB Positron (light street map, used for 3D mode)
+_CARTODB_STYLE_URL = _b64_style({
+    "version": 8,
+    "sources": {
+        "cartodb": {
+            "type": "raster",
+            "tiles": ["https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"],
+            "tileSize": 256
+        }
+    },
+    "layers": [{"id": "cartodb-layer", "type": "raster", "source": "cartodb"}]
+})
+
 # ============================================================
 # DATA LOADING (cached for performance)
 # ============================================================
@@ -111,43 +144,98 @@ def load_z_config():
             return json.load(f)
     return {}
 
+@st.cache_data
+def load_z_config_grouped():
+    """Load the F5 grouped z_config (21 corridor sections with track-talus + drainage groups)."""
+    z_file = paths.PROCESSED / "z_config_grouped.json"
+    if z_file.exists():
+        with open(z_file, "r") as f:
+            return json.load(f)
+    return {}
+
 def get_active_hydrology_data(selected_plan, is_real_hecras, hecras_timestamps, n_steps, df_swi_base):
     """Generates or loads the active rainfall and SWI DataFrame based on selection."""
-    if is_real_hecras and "P02" in selected_plan:
+    import datetime
+
+    if "P02_DEMO" in selected_plan:
+        # ─────────────────────────────────────────────────────────────────
+        # Extreme Design Storm: Synthetic Cevenol Category-3 scenario
+        # 127 timesteps x 10 min = 21.2 hours, total rainfall ~220 mm
+        # Hyetograph mirrors the WSE wave injected into PostProcessing_demo.hdf:
+        #   Quiet onset (0–2h) → storm onset (2–5h) → main burst (5–12h, peak 55mm/h)
+        #   → secondary peak (12–16h) → recession (16–21h)
+        # ─────────────────────────────────────────────────────────────────
+        DEMO_HOURLY_RAIN = [
+            # H0  H1   H2    H3    H4    H5    H6    H7    H8    H9
+            0.0,  0.0,  1.2,  4.5,  8.0,  18.0, 32.0, 48.0, 55.0, 50.0,
+            # H10  H11  H12   H13   H14   H15   H16   H17   H18   H19
+            38.0, 22.0, 28.0, 30.0, 18.0,  8.0,  4.0,  1.8,  0.6,  0.2,
+            # H20  H21 (partial)
+            0.1,   0.0,
+        ]
+
+        base_dt = datetime.datetime(2025, 9, 21, 7, 0)
+        interval_h = 10 / 60.0   # 10-minute steps
+
+        T = 240.0
+        C = 0.5 ** (interval_h / T)
+        swi_val = 0.0
+        C_min, C_max, k, SWI_mid = 0.1, 0.9, 0.05, 150.0
+
+        records = []
+        for idx in range(127):
+            dt = base_dt + datetime.timedelta(minutes=10 * idx)
+            hours_elapsed = idx * interval_h
+            hour_idx = int(hours_elapsed)
+            intensity = DEMO_HOURLY_RAIN[hour_idx] if hour_idx < len(DEMO_HOURLY_RAIN) else 0.0
+
+            swi_val = (intensity * interval_h) + swi_val * C
+            runoff_coeff = C_min + (C_max - C_min) / (1 + np.exp(-k * (swi_val - SWI_mid)))
+            active_runoff = intensity * runoff_coeff
+
+            records.append({
+                "timestamp":        dt,
+                "intensity_mm_h":   intensity,
+                "swi_mm":           swi_val,
+                "runoff_coeff":     runoff_coeff,
+                "active_runoff_mm": active_runoff,
+            })
+        return pd.DataFrame(records)
+
+    elif is_real_hecras and "P02" in selected_plan:
         # Historical Showcase (Sept 2025 Cevenol storm)
         p02_hourly_rain = [0.0, 0.1, 0.8, 0.0, 0.3, 1.4, 6.7, 15.1, 5.8, 6.3,
                             4.3, 2.8, 1.0, 2.3, 9.8, 3.0, 3.7, 1.9, 1.6, 3.9,
                             2.5, 0.5]
         records = []
-        import datetime
         try:
             start_dt = datetime.datetime.strptime(hecras_timestamps[0], "%d%b%Y %H:%M:%S")
         except Exception:
             start_dt = datetime.datetime(2025, 9, 21, 7, 0)
-            
+
         T = 240.0
         C = 0.5 ** ((10/60) / T) # 10-minute interval
         swi_val = 0.0
-        
+
         C_min = 0.1
         C_max = 0.9
         k = 0.05
         SWI_mid = 150.0
-        
+
         for idx, ts_str in enumerate(hecras_timestamps):
             try:
                 dt = datetime.datetime.strptime(ts_str, "%d%b%Y %H:%M:%S")
             except Exception:
                 dt = start_dt + datetime.timedelta(minutes=10*idx)
-            
+
             hours_elapsed = (dt - start_dt).total_seconds() / 3600.0
             hour_idx = int(hours_elapsed)
             intensity = p02_hourly_rain[hour_idx] if hour_idx < len(p02_hourly_rain) else 0.0
-            
+
             swi_val = (intensity * (10/60.0)) + swi_val * C
             runoff_coeff = C_min + (C_max - C_min) / (1 + np.exp(-k * (swi_val - SWI_mid)))
             active_runoff = intensity * runoff_coeff
-            
+
             records.append({
                 "timestamp": dt,
                 "intensity_mm_h": intensity,
@@ -156,6 +244,7 @@ def get_active_hydrology_data(selected_plan, is_real_hecras, hecras_timestamps, 
                 "active_runoff_mm": active_runoff
             })
         return pd.DataFrame(records)
+
         
     elif is_real_hecras and "P01" in selected_plan:
         # Design Storm (100mm/1h)
@@ -205,7 +294,8 @@ df_swi_base = load_swi()
 cs_data   = load_cross_sections()
 all_assets = load_assets()
 infra_data = load_infra_layers()
-z_config  = load_z_config()
+z_config         = load_z_config()
+z_config_grouped = load_z_config_grouped()
 
 # --- Replace monolithic Voie_0 with segmented track sections ---
 voie_seg_file = paths.PROCESSED / "voie_segments.json"
@@ -227,6 +317,7 @@ def load_wse_results(plan_key="synthetic"):
         "synthetic": paths.PROCESSED / "hecras_wse_results.json",
         "P01: R100_1HR (100mm rainfall storm, 1h)": paths.PROCESSED / "hecras_wse_p01_dashboard.json",
         "P02: 21SEP2025 (Historical event, 21h)": paths.PROCESSED / "hecras_wse_p02_dashboard.json",
+        "P02_DEMO: Synthetic Demonstration Storm": paths.PROCESSED / "hecras_wse_demo_showcase.json",
     }
     wse_file = plan_files.get(plan_key, plan_files["synthetic"])
     if wse_file.exists():
@@ -260,15 +351,21 @@ st.sidebar.divider()
 st.sidebar.subheader("Operational Mode")
 app_mode = st.sidebar.radio(
     "Select Mode",
-    options=["🔴 Historical Showcase (Sept 2025)", "🟢 Live Monitoring"],
+    options=["🔴 Historical Showcase (Sept 2025)", "⚡ Synthetic Demonstration Storm", "🟢 Live Monitoring"],
     index=0,
-    help="Switch between the historical Cevenol storm showcase and real-time weather monitoring."
+    help="Switch between the historical Cevenol storm showcase, synthetic demonstration storm showcase, and real-time weather monitoring."
 )
 
 if app_mode == "🔴 Historical Showcase (Sept 2025)":
     # --- Showcase Mode: Lock to Plan 2 (Historical Sept 2025 event) ---
-    st.sidebar.info("Showcasing the September 21, 2025 Cevenol flood event (Plan 2: 21h, 127 timesteps).")
+    st.sidebar.info("Showcasing the September 21, 2025 Cevenol flood event (Plan 2: 21h, 127 timesteps) using real model results.")
     selected_plan = "P02: 21SEP2025 (Historical event, 21h)"
+    is_real_hecras = True
+    data_source = "Demo (48h Cevenol)"  # Use demo rainfall data for SWI context
+elif app_mode == "⚡ Synthetic Demonstration Storm":
+    # --- Synthetic Demonstration Storm: Lock to custom demo results ---
+    st.sidebar.warning("Showcasing all warning statuses (GREEN, YELLOW, ORANGE, RED) with a custom generated flood event.")
+    selected_plan = "P02_DEMO: Synthetic Demonstration Storm"
     is_real_hecras = True
     data_source = "Demo (48h Cevenol)"  # Use demo rainfall data for SWI context
 else:
@@ -325,9 +422,20 @@ st.sidebar.divider()
 st.sidebar.subheader("Map Visual Settings")
 map_overlay_layer = st.sidebar.selectbox(
     "HEC-RAS 2D Flow Overlay",
-    ["Water Depth", "Water Surface Elevation (WSE)", "Flow Velocity", "None"],
+    [
+        "Water Depth",
+        "Water Surface Elevation (WSE)",
+        "Flow Velocity",
+        "Water Depth (Max)",
+        "Channel Flooding (>0.5m)",
+        "None",
+    ],
     index=0,
-    help="Select the HEC-RAS 2D model variable to show as an overlay on the map."
+    help=(
+        "Select the HEC-RAS 2D model variable to show as an overlay on the map. "
+        "'Water Depth (Max)' and 'Channel Flooding (>0.5m)' display the stored "
+        "peak-over-simulation maps, matching RAS Mapper's 'Depth (Max)' layer."
+    )
 )
 
 map_basemap = st.sidebar.selectbox(
@@ -423,8 +531,10 @@ def compute_risk_at_t(row, t_idx, wse_results, config):
     
     Logic:
     1. Get this asset's WSE at timestep t_idx from wse_results.
-    2. Compare WSE against the asset's Yellow/Orange/Red Z-thresholds.
-    3. If an asset is physically lower than a flooded asset, it must also be flooded.
+    2. Check if the asset is dry (water depth <= 2cm). If dry, risk is 0.
+    3. If absolute thresholds in config are lower than the ground elevation (due to mismatch),
+       fallback to relative depth thresholds (Yellow: 5cm, Orange: 20cm, Red: 50cm).
+    4. Otherwise, compare WSE against the asset's Yellow/Orange/Red Z-thresholds.
     """
     asset_id = row["name"]
     asset_config = config.get(asset_id)
@@ -441,9 +551,31 @@ def compute_risk_at_t(row, t_idx, wse_results, config):
     else:
         return 0
     
+    base_z = asset_wse_data.get("base_z_m", 0.0)
+    
+    # If the asset is dry (depth <= 2cm), risk is 0%
+    if current_wse <= base_z + 0.02:
+        return 0
+        
     yellow_z = asset_config["yellow_z_m"]
     orange_z = asset_config["orange_z_m"]
     red_z = asset_config["red_z_m"]
+    
+    # If the ground elevation is above the red threshold (database mismatch),
+    # fall back to depth-based relative thresholds.
+    if base_z > red_z:
+        depth = current_wse - base_z
+        if depth >= 0.5:
+            return 100  # RED: over 50cm water depth
+        elif depth >= 0.2:
+            frac = (depth - 0.2) / 0.3
+            return int(75 + frac * 24)  # ORANGE: 20cm - 50cm
+        elif depth >= 0.05:
+            frac = (depth - 0.05) / 0.15
+            return int(50 + frac * 24)  # YELLOW: 5cm - 20cm
+        else:
+            frac = depth / 0.05
+            return int(frac * 25)  # GREEN: <5cm
     
     # Risk Hierarchy: compare actual WSE against thresholds
     if current_wse >= red_z:
@@ -458,7 +590,6 @@ def compute_risk_at_t(row, t_idx, wse_results, config):
         return int(50 + frac * 24)
     else:
         # GREEN: water below drainage capacity
-        base_z = asset_wse_data.get("base_z_m", yellow_z - 2.0)
         if current_wse > base_z:
             frac = (current_wse - base_z) / max(yellow_z - base_z, 0.1)
             return int(frac * 25)
@@ -555,18 +686,42 @@ with col1:
         )
 
         # --- 2D Flow Map Overlay (F4) ---
-        flow_layer = None
+        flow_bitmap_layer = None
+        flow_tooltip_layer = None
         hdf5_plan_files = {
             "P01: R100_1HR (100mm rainfall storm, 1h)": paths.RAW.parent / "hec-ras" / "CAPSTONE_JN_L752_PK.p01.hdf",
             "P02: 21SEP2025 (Historical event, 21h)": paths.RAW.parent / "hec-ras" / "CAPSTONE_JN_L752_PK.p02.hdf",
+            "P02_DEMO: Synthetic Demonstration Storm": paths.RAW.parent / "hec-ras" / "21092025" / "PostProcessing_demo.hdf",
         }
         hdf5_path = hdf5_plan_files.get(selected_plan)
 
         # Build overlay layer based on sidebar choice
+        wse_min_val = None
+        wse_max_val = None
         if hdf5_path and hdf5_path.exists() and map_overlay_layer != "None":
             try:
-                from src.engine.hecras_hdf5_reader import extract_downsampled_flow_data
-                # Extract downsampled flow data for the current timestep
+                from src.engine.hecras_hdf5_reader import extract_downsampled_flow_data, rasterize_flow_to_bitmap
+
+                # 1. Generate smooth raster overlay using BitmapLayer
+                raster_data = rasterize_flow_to_bitmap(
+                    hdf5_path=hdf5_path,
+                    timestep_idx=t_idx,
+                    variable=map_overlay_layer,
+                    grid_size=512
+                )
+                if raster_data and raster_data.get("img_b64"):
+                    from pydeck.types import String
+                    flow_bitmap_layer = pdk.Layer(
+                        "BitmapLayer",
+                        image=String(f"data:image/png;base64,{raster_data['img_b64']}"),
+                        bounds=raster_data["bounds"],
+                        opacity=0.7,
+                        pickable=False,
+                    )
+                    wse_min_val = raster_data.get("vmin")
+                    wse_max_val = raster_data.get("vmax")
+
+                # 2. Extract downsampled point cloud for transparent tooltip layer
                 flow_data = extract_downsampled_flow_data(
                     hdf5_path=hdf5_path,
                     timestep_idx=t_idx,
@@ -576,56 +731,7 @@ with col1:
                 )
                 if flow_data and flow_data.get("points"):
                     df_flow = pd.DataFrame(flow_data["points"])
-                    
-                    # Colors based on selected variable
-                    if map_overlay_layer == "Water Depth":
-                        def get_color(row):
-                            d = row["depth_m"]
-                            fl = row["flooded"]
-                            if not fl or d <= 0.02:
-                                return [200, 200, 200, 20] # Light grey dry context
-                            elif d < 0.2:
-                                return [173, 216, 230, 160] # Light blue
-                            elif d < 0.7:
-                                return [65, 105, 225, 200]  # Royal blue
-                            elif d < 1.5:
-                                return [0, 0, 139, 220]      # Dark blue
-                            else:
-                                return [75, 0, 130, 240]     # Indigo / Deep flood
-                    elif map_overlay_layer == "Water Surface Elevation (WSE)":
-                        def get_color(row):
-                            w = row["wse_m"]
-                            fl = row["flooded"]
-                            if not fl or pd.isna(w):
-                                return [200, 200, 200, 20]
-                            if w < 200:
-                                return [0, 191, 255, 160]   # Deep Sky Blue
-                            elif w < 250:
-                                return [0, 139, 139, 180]   # Dark Cyan
-                            elif w < 300:
-                                return [70, 130, 180, 200]  # Steel Blue
-                            elif w < 400:
-                                return [65, 105, 225, 210]  # Royal Blue
-                            else:
-                                return [25, 25, 112, 230]   # Midnight Blue
-                    else: # Flow Velocity
-                        def get_color(row):
-                            v = row["velocity_ms"]
-                            fl = row["flooded"]
-                            if not fl or v < 0.1:
-                                return [200, 200, 200, 20]
-                            elif v < 0.5:
-                                return [50, 205, 50, 160]    # Lime Green
-                            elif v < 1.2:
-                                return [255, 165, 0, 180]   # Orange
-                            elif v < 2.0:
-                                return [255, 69, 0, 210]    # Orange Red
-                            else:
-                                return [148, 0, 211, 240]   # Dark Violet
 
-                    df_flow["color"] = df_flow.apply(get_color, axis=1)
-                    
-                    # Add unified hover properties
                     df_flow["name"] = "2D Mesh Cell"
                     df_flow["asset_type"] = f"2D Flow Area ({map_overlay_layer})"
                     df_flow["tooltip_risk"] = "N/A"
@@ -633,16 +739,14 @@ with col1:
                     df_flow["velocity_ms"] = df_flow["velocity_ms_val"].apply(lambda v: f"{v:.2f}")
                     df_flow["depth_m"] = df_flow["depth_m"].apply(lambda d: f"{d:.2f}")
                     df_flow["wse_m"] = df_flow["wse_m"].apply(lambda w: f"{w:.2f}" if pd.notna(w) else "N/A")
-                    
-                    flow_layer = pdk.Layer(
+
+                    flow_tooltip_layer = pdk.Layer(
                         "ScatterplotLayer",
                         data=df_flow,
                         get_position=["lon", "lat"],
-                        get_radius=12,
-                        radius_units="meters", # Meters scales dynamically with zooming
-                        radius_min_pixels=3,
-                        radius_max_pixels=12,
-                        get_fill_color="color",
+                        get_radius=20,
+                        radius_units="meters",
+                        get_fill_color=[0, 0, 0, 0],  # fully transparent
                         pickable=True,
                     )
             except Exception as e:
@@ -680,74 +784,36 @@ with col1:
         except Exception:
             infra_layers = []
 
-        # Determine Map Basemap Style
-        if map_basemap == "Terrain Hillshade":
-            style_dict = {
-                "version": 8,
-                "sources": {
-                    "hillshade": {
-                        "type": "raster",
-                        "tiles": ["https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}.jpg"],
-                        "tileSize": 256
-                    }
-                },
-                "layers": [
-                    {
-                        "id": "hillshade-layer",
-                        "type": "raster",
-                        "source": "hillshade",
-                        "minzoom": 0,
-                        "maxzoom": 22
-                    }
-                ]
-            }
-        else:
-            style_dict = {
-                "version": 8,
-                "sources": {
-                    "cartodb": {
-                        "type": "raster",
-                        "tiles": ["https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"],
-                        "tileSize": 256
-                    }
-                },
-                "layers": [
-                    {
-                        "id": "cartodb-layer",
-                        "type": "raster",
-                        "source": "cartodb",
-                        "minzoom": 0,
-                        "maxzoom": 22
-                    }
-                ]
-            }
-
-        import json
-        import base64
-        style_json = json.dumps(style_dict)
-        basemap_style_url = f"data:application/json;base64,{base64.b64encode(style_json.encode()).decode()}"
+        # Basemap selection:
+        #   Terrain Hillshade → ESRI World Hillshade (grey terrain, same as HEC-RAS Mapper) + 2D flat
+        #   CartoDB Light     → CartoDB Positron raster + 3D perspective
+        # Both delivered as base64 GL style (no map_provider needed, avoids indexOf crash)
+        is_hecras_style = (map_basemap == "Terrain Hillshade")
+        basemap_style_url = _HILLSHADE_STYLE_URL if is_hecras_style else _CARTODB_STYLE_URL
 
         try:
-            deck_layers = [
-                *infra_layers,
-            ]
-            if flow_layer:
-                deck_layers.append(flow_layer)
+            deck_layers = []
+            deck_layers.extend(infra_layers)
+            if flow_bitmap_layer:
+                deck_layers.append(flow_bitmap_layer)
+            if flow_tooltip_layer:
+                deck_layers.append(flow_tooltip_layer)
             deck_layers.append(risk_layer)
 
+            # HEC-RAS mode: flat 2D top-down view. CartoDB mode: 3D perspective.
+            # key= forces a full remount when basemap changes, so pitch/bearing are re-applied.
             st.pydeck_chart(pdk.Deck(
                 map_style=basemap_style_url,
-                map_provider="mapbox",
                 initial_view_state=pdk.ViewState(
                     latitude=center_lat,
                     longitude=center_lon,
                     zoom=13,
-                    pitch=30,
-                    bearing=-10,
+                    pitch=0 if is_hecras_style else 30,
+                    bearing=0 if is_hecras_style else -10,
                 ),
                 layers=deck_layers,
                 tooltip=tooltip,
-            ))
+            ), key=f"map_{map_basemap}")
 
             # --- Inline Map Legend (F4.7) ---
             if map_overlay_layer != "None":
@@ -755,50 +821,47 @@ with col1:
                     legend_html = """
                     <div style='display:flex; align-items:center; gap:10px; padding:6px 12px; background:#1e293b; border-radius:6px; margin-top:8px; border:1px solid #334155'>
                         <span style='color:white; font-size:12px; font-weight:bold'>Legend (Depth):</span>
-                        <span style='color:#94a3b8; font-size:11px'>Dry Context</span>
-                        <div style='width:12px; height:12px; background:rgba(200,200,200,0.8); border-radius:2px'></div>
-                        <span style='color:#94a3b8; font-size:11px'>&lt;0.2m</span>
-                        <div style='width:12px; height:12px; background:rgba(173,216,230,0.8); border-radius:2px'></div>
-                        <span style='color:#94a3b8; font-size:11px'>0.2m - 0.7m</span>
-                        <div style='width:12px; height:12px; background:rgba(65,105,225,0.8); border-radius:2px'></div>
-                        <span style='color:#94a3b8; font-size:11px'>0.7m - 1.5m</span>
-                        <div style='width:12px; height:12px; background:rgba(0,0,139,0.8); border-radius:2px'></div>
-                        <span style='color:#94a3b8; font-size:11px'>&gt;1.5m</span>
-                        <div style='width:12px; height:12px; background:rgba(75,0,130,0.8); border-radius:2px'></div>
+                        <span style='color:#94a3b8; font-size:11px'>0.0 m</span>
+                        <div style='flex:1; width:150px; height:12px; border-radius:3px; background: linear-gradient(to right, rgb(173, 216, 230), rgb(65, 105, 225), rgb(75, 0, 130))'></div>
+                        <span style='color:#94a3b8; font-size:11px'>2.0+ m</span>
                     </div>
                     """
                 elif map_overlay_layer == "Water Surface Elevation (WSE)":
-                    legend_html = """
+                    wmin_str = f"{wse_min_val:.2f} m" if wse_min_val is not None else "Min"
+                    wmax_str = f"{wse_max_val:.2f} m" if wse_max_val is not None else "Max"
+                    legend_html = f"""
                     <div style='display:flex; align-items:center; gap:10px; padding:6px 12px; background:#1e293b; border-radius:6px; margin-top:8px; border:1px solid #334155'>
                         <span style='color:white; font-size:12px; font-weight:bold'>Legend (WSE):</span>
-                        <span style='color:#94a3b8; font-size:11px'>Dry Context</span>
-                        <div style='width:12px; height:12px; background:rgba(200,200,200,0.8); border-radius:2px'></div>
-                        <span style='color:#94a3b8; font-size:11px'>&lt;200m</span>
-                        <div style='width:12px; height:12px; background:rgba(0,191,255,0.8); border-radius:2px'></div>
-                        <span style='color:#94a3b8; font-size:11px'>200m - 250m</span>
-                        <div style='width:12px; height:12px; background:rgba(0,139,139,0.8); border-radius:2px'></div>
-                        <span style='color:#94a3b8; font-size:11px'>250m - 300m</span>
-                        <div style='width:12px; height:12px; background:rgba(70,130,180,0.8); border-radius:2px'></div>
-                        <span style='color:#94a3b8; font-size:11px'>300m - 400m</span>
-                        <div style='width:12px; height:12px; background:rgba(65,105,225,0.8); border-radius:2px'></div>
-                        <span style='color:#94a3b8; font-size:11px'>&gt;400m</span>
-                        <div style='width:12px; height:12px; background:rgba(25,25,112,0.8); border-radius:2px'></div>
+                        <span style='color:#94a3b8; font-size:11px'>{wmin_str}</span>
+                        <div style='flex:1; width:150px; height:12px; border-radius:3px; background: linear-gradient(to right, rgb(0, 200, 100), rgb(255, 215, 0), rgb(255, 140, 0), rgb(200, 0, 0))'></div>
+                        <span style='color:#94a3b8; font-size:11px'>{wmax_str}</span>
+                    </div>
+                    """
+                elif map_overlay_layer == "Water Depth (Max)":
+                    legend_html = """
+                    <div style='display:flex; align-items:center; gap:10px; padding:6px 12px; background:#1e293b; border-radius:6px; margin-top:8px; border:1px solid #334155'>
+                        <span style='color:white; font-size:12px; font-weight:bold'>Legend (Depth Max):</span>
+                        <span style='color:#94a3b8; font-size:11px'>0.2 m</span>
+                        <div style='flex:1; width:150px; height:12px; border-radius:3px; background: linear-gradient(to right, rgb(173, 216, 230), rgb(65, 105, 225), rgb(75, 0, 130))'></div>
+                        <span style='color:#94a3b8; font-size:11px'>3.0+ m</span>
+                    </div>
+                    """
+                elif map_overlay_layer == "Channel Flooding (>0.5m)":
+                    legend_html = """
+                    <div style='display:flex; align-items:center; gap:10px; padding:6px 12px; background:#1e293b; border-radius:6px; margin-top:8px; border:1px solid #334155'>
+                        <span style='color:white; font-size:12px; font-weight:bold'>Legend (Channel Flood):</span>
+                        <span style='color:#94a3b8; font-size:11px'>&gt;0.5 m</span>
+                        <div style='flex:1; width:150px; height:12px; border-radius:3px; background: linear-gradient(to right, rgb(173, 216, 230), rgb(65, 105, 225), rgb(75, 0, 130))'></div>
+                        <span style='color:#94a3b8; font-size:11px'>3.0+ m</span>
                     </div>
                     """
                 else:  # Flow Velocity
                     legend_html = """
                     <div style='display:flex; align-items:center; gap:10px; padding:6px 12px; background:#1e293b; border-radius:6px; margin-top:8px; border:1px solid #334155'>
                         <span style='color:white; font-size:12px; font-weight:bold'>Legend (Velocity):</span>
-                        <span style='color:#94a3b8; font-size:11px'>Dry Context</span>
-                        <div style='width:12px; height:12px; background:rgba(200,200,200,0.8); border-radius:2px'></div>
-                        <span style='color:#94a3b8; font-size:11px'>&lt;0.5 m/s</span>
-                        <div style='width:12px; height:12px; background:rgba(50,205,50,0.8); border-radius:2px'></div>
-                        <span style='color:#94a3b8; font-size:11px'>0.5 - 1.2 m/s</span>
-                        <div style='width:12px; height:12px; background:rgba(255,165,0,0.8); border-radius:2px'></div>
-                        <span style='color:#94a3b8; font-size:11px'>1.2 - 2.0 m/s</span>
-                        <div style='width:12px; height:12px; background:rgba(255,69,0,0.8); border-radius:2px'></div>
-                        <span style='color:#94a3b8; font-size:11px'>&gt;2.0 m/s</span>
-                        <div style='width:12px; height:12px; background:rgba(148,0,211,0.8); border-radius:2px'></div>
+                        <span style='color:#94a3b8; font-size:11px'>0.0 m/s</span>
+                        <div style='flex:1; width:150px; height:12px; border-radius:3px; background: linear-gradient(to right, rgb(50, 205, 50), rgb(255, 165, 0), rgb(255, 69, 0), rgb(148, 0, 211))'></div>
+                        <span style='color:#94a3b8; font-size:11px'>2.0+ m/s</span>
                     </div>
                     """
                 st.markdown(legend_html, unsafe_allow_html=True)
@@ -823,6 +886,151 @@ with col1:
             top5.style.map(color_risk_cell, subset=["Risk (%)"]),
             width="stretch"
         )
+        # ============================================================
+        # F5.4 — Section Group Alerts (Track-Talus + Drainage Roll-up)
+        # ============================================================
+        if z_config_grouped and wse_results:
+            try:
+                from src.engine.alert_dispatcher import AlertDispatcher
+                _dispatcher = AlertDispatcher()
+                group_alerts = _dispatcher.evaluate_all_groups(
+                    z_config_grouped, wse_results, timestep_idx=t_idx
+                )
+                system_summary = _dispatcher.summarise_system(group_alerts)
+
+                # --- System-wide banner ---
+                overall_st = system_summary["overall_status"]
+                banner_color = CAP_COLORS_HEX.get(overall_st, "#4CAF50")
+                banner_fg = "#000" if overall_st in ("GREEN", "YELLOW") else "#FFF"
+                directive_txt = system_summary["directive"]
+                counts = system_summary["counts"]
+
+                st.markdown(
+                    f"""
+                    <div style='margin-top:18px; padding:10px 16px; border-radius:8px;
+                                background:{banner_color}; border:2px solid rgba(255,255,255,0.2)'>
+                        <span style='color:{banner_fg}; font-size:14px; font-weight:bold'>
+                            CORRIDOR STATUS: {overall_st} &mdash; {directive_txt}
+                        </span>
+                        <span style='color:{banner_fg}; font-size:12px; margin-left:16px'>
+                            {counts['RED']} RED &bull; {counts['ORANGE']} ORANGE &bull;
+                            {counts['YELLOW']} YELLOW &bull; {counts['GREEN']} GREEN
+                        </span>
+                    </div>""",
+                    unsafe_allow_html=True
+                )
+
+                st.subheader("Corridor Section Group Alerts (T+{})".format(t_idx))
+
+                # Build DataFrame from group alerts for display
+                _group_rows = []
+                for ga in group_alerts:
+                    tt = ga["track_alert"]
+                    n_drain_warn = sum(
+                        1 for d in ga["drainage_alerts"]
+                        if d["status"] in ("YELLOW", "ORANGE", "RED")
+                    )
+                    n_drain_total = len(ga["drainage_alerts"])
+                    n_bridge_warn = sum(
+                        1 for b in ga["bridge_alerts"]
+                        if b["status"] in ("YELLOW", "ORANGE", "RED")
+                    )
+
+                    def status_to_emoji_label(status):
+                        emojis = {
+                            "RED": "🔴 RED",
+                            "ORANGE": "🟠 ORANGE",
+                            "YELLOW": "🟡 YELLOW",
+                            "GREEN": "🟢 GREEN",
+                        }
+                        return emojis.get(status, status)
+
+                    _group_rows.append({
+                        "Section":        ga["group_id"],
+                        "Overall":        status_to_emoji_label(ga["status"]),
+                        "Track ID":       tt["track_id"],
+                        "Track Status":   status_to_emoji_label(tt["status"]),
+                        "Track WSE (m)":  tt["wse_m"],
+                        "Red Z (m)":      tt.get("red_z_m", "-"),
+                        "Track Margin (m)": tt.get("margin_m", 0.0),
+                        "Drainage Alerts": f"{n_drain_warn}/{n_drain_total}",
+                        "Bridge Alerts":  str(n_bridge_warn) if ga["bridge_alerts"] else "-",
+                    })
+
+                df_groups = pd.DataFrame(_group_rows)
+
+                # Colour-map the Overall and Track Status columns
+                def _color_status_cell(val):
+                    clean_val = val.split()[-1] if isinstance(val, str) else val
+                    c = CAP_COLORS_HEX.get(clean_val, "#4CAF50")
+                    fg = "#000" if clean_val in ("GREEN", "YELLOW") else "#FFF"
+                    return f"background-color:{c}; color:{fg}; font-weight:bold"
+
+                def _color_margin_cell(val):
+                    if isinstance(val, (int, float)):
+                        if val > 0:
+                            return "color: #ff4d4d; font-weight: bold" # red/orange warning text
+                        else:
+                            return "color: #2ecc71; font-weight: bold" # green safe text
+                    return ""
+
+                styled_groups = (
+                    df_groups.style
+                    .map(_color_status_cell, subset=["Overall", "Track Status"])
+                    .map(_color_margin_cell, subset=["Track Margin (m)"])
+                    .format({
+                        "Track WSE (m)": "{:.2f}", 
+                        "Red Z (m)": lambda v: f"{v:.2f}" if isinstance(v, float) else v,
+                        "Track Margin (m)": lambda v: f"{v:+.2f} m" if isinstance(v, (int, float)) else v
+                    })
+                )
+                st.dataframe(styled_groups, use_container_width=True)
+
+                # --- Expandable detail per RED/ORANGE section ---
+                critical = [ga for ga in group_alerts if ga["status"] in ("RED", "ORANGE")]
+                if critical:
+                    with st.expander(
+                        f"{len(critical)} Critical Section(s) — Drainage & Bridge Detail", expanded=False
+                    ):
+                        for ga in critical:
+                            col_h, col_d = st.columns([1, 3])
+                            with col_h:
+                                st_color = CAP_COLORS_HEX.get(ga["status"], "#4CAF50")
+                                st_fg = "#FFF"
+                                st.markdown(
+                                    f"<div style='background:{st_color}; border-radius:6px; padding:8px; "
+                                    f"text-align:center; color:{st_fg}; font-weight:bold'>"
+                                    f"{ga['group_id']}<br>{ga['status']}<br>{ga['directive']}</div>",
+                                    unsafe_allow_html=True
+                                )
+                            with col_d:
+                                # Drainage detail
+                                for da in ga["drainage_alerts"]:
+                                    if da["status"] != "GREEN":
+                                        da_c = CAP_COLORS_HEX.get(da["status"], "#4CAF50")
+                                        da_fg = "#000" if da["status"] in ("GREEN", "YELLOW") else "#FFF"
+                                        st.markdown(
+                                            f"<span style='background:{da_c}; color:{da_fg}; border-radius:4px; "
+                                            f"padding:2px 6px; font-size:11px; font-weight:bold'>{da['status']}</span> "
+                                            f"<b>{da['id']}</b> ({da['type']}) &mdash; "
+                                            f"WSE={da['wse_m']:.2f}m / Red@{da.get('red_z_m', '?')}m "
+                                            f"(margin {da['margin_m']:+.2f}m)",
+                                            unsafe_allow_html=True
+                                        )
+                                # Bridge detail
+                                for br in ga["bridge_alerts"]:
+                                    if br["status"] != "GREEN":
+                                        br_c = CAP_COLORS_HEX.get(br["status"], "#4CAF50")
+                                        br_fg = "#FFF"
+                                        st.markdown(
+                                            f"<span style='background:{br_c}; color:{br_fg}; border-radius:4px; "
+                                            f"padding:2px 6px; font-size:11px; font-weight:bold'>{br['status']}</span> "
+                                            f"<b>{br['id']}</b> ({br['type']}) &mdash; "
+                                            f"WSE={br['wse_m']:.2f}m / Red@{br.get('red_z_m', '?')}m",
+                                            unsafe_allow_html=True
+                                        )
+            except Exception as _ge:
+                st.warning(f"Group alert panel error: {_ge}")
     else:
         st.warning("No assets selected. Use the sidebar filter to choose asset types.")
 

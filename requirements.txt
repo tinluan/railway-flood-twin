@@ -29,3 +29,9 @@ httpx
 
 # HEC-RAS COM API (Windows only)
 pywin32
+
+# HEC-RAS HDF5 result reader
+h5py
+
+# Excel database reader
+openpyxl

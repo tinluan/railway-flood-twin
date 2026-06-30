@@ -207,9 +207,13 @@ class CycleRequest(BaseModel):
 class CycleResult(BaseModel):
     """Result of a cycle execution."""
     status: str
+    source_mode: Optional[str] = None
+    rainfall_file: Optional[str] = None
     swi_peak_mm: Optional[float] = None
+    hecras_triggered: bool = False
     alerts_generated: int = 0
     message: str = ""
+    duration_sec: Optional[float] = None
 
 
 class SimulationRequest(BaseModel):
@@ -229,3 +233,21 @@ class SimulationResult(BaseModel):
     runoff_series: List[float]
     peak_swi_mm: float
     alerts: List[AlertVerdict]
+
+
+class HECRASRecomputeResult(BaseModel):
+    """Result of a manual HEC-RAS 2D recomputation."""
+    status: str
+    plan_id: str
+    message: str
+    wse_extracted: bool = False
+    duration_sec: Optional[float] = None
+
+
+class RainfallForecastResponse(BaseModel):
+    """Hourly rainfall forecast data."""
+    provider: str
+    latitude: float
+    longitude: float
+    records: int
+    data: List[Dict[str, Any]]

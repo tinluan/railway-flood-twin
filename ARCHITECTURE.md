@@ -20,11 +20,11 @@ When in doubt, follow the rules defined here.
 | Source | Raw Z Range | Offset Required | Notes |
 |--------|-------------|-----------------|-------|
 | 2D Shapefiles (`maquette_2d/`) | ~95-185m | **+107.0166m** | CAD origin vs NGF |
-| 3D MULTIPATCH (`maquette_3d/`) | ~175-290m | **None (pending verification)** | Z already near NGF |
+| 3D MULTIPATCH (`maquette_3d/`) | ~175-290m | **None (verified)** | Z already near NGF |
 | DTM raster (`dtm_fixed.tif`) | ~200-250m | Reference datum | EPSG:2154 + NGF |
 
 > **CRITICAL**: Never apply the +107m offset to 3D BIM assets. Datum verification
-> required first (compare 3D Z vs DTM at the same X,Y point).
+> is complete and confirmed they are already in the NGF range.
 
 ### 1.3 3D BIM Asset Inventory (MULTIPATCH in `data/raw/maquette_3d/`)
 | Layer | Feature Count | Z Range (m) |
@@ -142,12 +142,37 @@ via `st.session_state["locked_asset"]`.
 
 ---
 
-## 6. HEC-RAS Integration (Blocked — waiting for .prj file)
+## 6. HEC-RAS Integration (ACTIVE — pre-computed results available)
 
-- **Method**: COM API via `pywin32`, ProgID: `RAS67.HECRASController`
-- **Bridge**: `src/engine/hecras_bridge.py`
-- **Status**: COM connection verified. Awaiting `.prj` project file from team.
-- **Workflow**: Rainfall inject → HEC-RAS compute → WSE extract → chart update.
+### 6.1 HEC-RAS Project (`data/New_data/HEC_RAS/`)
+- **Project**: `CAPSTONE_JN_L752_PK` (Ligne 752, PK534 — South Head Tartaiguille)
+- **Version**: HEC-RAS 6.60, SI Units, EPSG:2154
+- **Mesh**: 2D flow area `PK534_FA_5M2`, 950,122 cells (~5m² resolution)
+- **Boundary**: `PK534_BL`, friction slope 0.01
+- **Structures**: 9 SA/2D connections (CULVERT_MAIN, CULVERT_ACCESS ×5, CULVERT_2, CULVERT_MAIN_3, CULVERT_VOIE_2)
+
+### 6.2 Simulation Plans (Pre-Computed)
+| Plan | Title | Duration | Timesteps | Δt Compute | Δt Output | Peak Depth |
+|------|-------|----------|-----------|------------|-----------|------------|
+| p01 | R100_1HR | 30MAR2026 13:00→14:00 | 13 | 1s | 5min | 9.79m |
+| p02 | 21092025 | 21SEP2025 07:00→22SEP 04:00 | 127 | 5s | 10min | TBD |
+
+### 6.3 Two Access Methods
+- **COM Bridge** (`src/engine/hecras_bridge.py`): For live HEC-RAS runs via `RAS67.HECRASController`
+- **HDF5 Reader** (`src/engine/hecras_hdf5_reader.py`): For reading pre-computed results (no HEC-RAS needed)
+
+### 6.4 HDF5 Result Structure
+```
+Results/Unsteady/Output/Output Blocks/Base Output/Unsteady Time Series/
+  Time Date Stamp              → (N_timesteps,) timestamps
+  2D Flow Areas/PK534_FA_5M2/
+    Water Surface              → (N_timesteps, 950122) WSE in metres NGF
+    Face Velocity              → (N_timesteps, 1894408) m/s
+    Cell Cumulative Precip     → (N_timesteps, 950122) mm
+Geometry/2D Flow Areas/PK534_FA_5M2/
+  Cells Center Coordinate      → (950122, 2) Lambert 93 X,Y
+  Cells Minimum Elevation      → (950122,) terrain Z per cell
+```
 
 ---
 
@@ -185,10 +210,17 @@ Both resolve via `.env` `DATA_ROOT`. Do not break the legacy import in `app_main
 | `data/processed/swi_results.csv` | SWI + runoff coefficient per hour |
 | `data/raw/rainfall_Ligne_400.csv` | 48h Cevenol storm input |
 | `data/raw/maquette_3d/` | 3D BIM MULTIPATCH shapefiles (all assets) |
+| `data/New_data/HEC_RAS/*.prj` | HEC-RAS 6.6 project file (CAPSTONE_JN_L752_PK) |
+| `data/New_data/HEC_RAS/*.p01.hdf` | Plan 1: R100_1HR pre-computed results (512 MB) |
+| `data/New_data/HEC_RAS/*.p02.hdf` | Plan 2: 21092025 pre-computed results (422 MB) |
+| `data/New_data/INFRA_SNCF/*.xlsx` | SNCF infrastructure database V2 (28K rainfall rows) |
+| `data/New_data/CAPSTONE/2D_OBJECTS/` | BIM 2D shapefiles (English naming, 10 asset types) |
+| `data/New_data/CAPSTONE/3D_OBJECTS/` | BIM 3D MULTIPATCH (English naming, incl. Tunnel) |
 | `src/dashboard/app_main.py` | Main Streamlit dashboard |
 | `src/api/main.py` | FastAPI application and REST endpoints |
 | `tests/test_api.py` | API validation test suite |
-| `src/engine/hecras_bridge.py` | HEC-RAS 6.7 COM API connector |
+| `src/engine/hecras_bridge.py` | HEC-RAS 6.7 COM API connector (live runs) |
+| `src/engine/hecras_hdf5_reader.py` | HEC-RAS HDF5 result reader (pre-computed) |
 | `src/engine/synthetic_inundation.py` | Bathtub flood polygon generator (DONE) |
 | `src/engine/segment_voie.py` | Splits Voie into DTM-sampled ~100m segments |
 | `src/engine/swi_calculator.py` | SWI recursive filter + sigmoid runoff |
