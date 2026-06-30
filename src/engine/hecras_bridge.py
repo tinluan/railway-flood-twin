@@ -372,6 +372,19 @@ class HECRASBridge:
         """
         print(f"[HECRASBridge] Starting recomputation pipeline for plan {plan_id}...")
         
+        # Clean up old HDF5 output and temporary files to prevent symbol table node corruption
+        if self._project_path:
+            prj_dir = Path(self._project_path).parent
+            prj_name = Path(self._project_path).stem
+            for suffix in [f".{plan_id}.hdf", f".{plan_id}.tmp.hdf", f".{plan_id}.snapshot.hdf"]:
+                fpath = prj_dir / f"{prj_name}{suffix}"
+                if fpath.exists():
+                    try:
+                        os.remove(fpath)
+                        print(f"[HECRASBridge] Cleaned up old HDF5 file: {fpath.name}")
+                    except Exception as e:
+                        print(f"[HECRASBridge] Warning: Could not delete {fpath.name} to refresh: {e}")
+                        
         # 1. Update Precipitation
         self.update_precipitation(rainfall_csv_path, plan_id)
         
