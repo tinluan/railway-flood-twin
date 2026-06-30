@@ -137,6 +137,14 @@ class HECRASBridge:
             self._rc = None
             self._is_open = False
             print("[HECRASBridge] Connection closed.")
+            
+        # Forcefully terminate any remaining HECRAS.exe zombie processes
+        import subprocess
+        try:
+            subprocess.run(["taskkill", "/F", "/IM", "HECRAS.exe"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            print("[HECRASBridge] Leftover HECRAS.exe processes cleaned up successfully.")
+        except Exception:
+            pass
 
     # ------------------------------------------------------------------
     # Computation
