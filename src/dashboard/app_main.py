@@ -314,12 +314,13 @@ def load_wse_results(plan_key="synthetic"):
     Plans: 'synthetic' (48h), 'p01' (R100_1HR, 13 steps), 'p02' (21092025, 127 steps)
     """
     plan_files = {
+        "Active Simulation (Latest Recomputed)": paths.PROCESSED / "hecras_wse_results.json",
         "synthetic": paths.PROCESSED / "hecras_wse_results.json",
         "P01: R100_1HR (100mm rainfall storm, 1h)": paths.PROCESSED / "hecras_wse_p01_dashboard.json",
         "P02: 21SEP2025 (Historical event, 21h)": paths.PROCESSED / "hecras_wse_p02_dashboard.json",
         "P02_DEMO: Synthetic Demonstration Storm": paths.PROCESSED / "hecras_wse_demo_showcase.json",
     }
-    wse_file = plan_files.get(plan_key, plan_files["synthetic"])
+    wse_file = plan_files.get(plan_key, plan_files["Active Simulation (Latest Recomputed)"])
     if wse_file.exists():
         with open(wse_file, "r") as f:
             return json.load(f)
@@ -392,6 +393,7 @@ else:
     st.sidebar.divider()
     st.sidebar.subheader("HEC-RAS Scenario")
     hecras_plan_options = [
+        "Active Simulation (Latest Recomputed)",
         "P02: 21SEP2025 (Historical event, 21h)",
         "P01: R100_1HR (100mm rainfall storm, 1h)",
         "synthetic",
@@ -399,9 +401,13 @@ else:
     selected_plan = st.sidebar.selectbox(
         "Simulation Plan",
         hecras_plan_options,
-        help="Select a pre-computed HEC-RAS plan. P02 is the historical event, P01 is the 100mm/1h design storm."
+        help="Select a simulation plan. 'Active Simulation' shows the latest live/demo cycle run results."
     )
-    is_real_hecras = selected_plan != "synthetic"
+    is_real_hecras = selected_plan in [
+        "Active Simulation (Latest Recomputed)",
+        "P02: 21SEP2025 (Historical event, 21h)",
+        "P01: R100_1HR (100mm rainfall storm, 1h)"
+    ]
 
 wse_results = load_wse_results(selected_plan)
 
@@ -482,7 +488,25 @@ with col_speed:
 if "timeline_idx" not in st.session_state:
     st.session_state["timeline_idx"] = 0
 
-if is_real_hecras and hecras_timestamps:
+if n_steps == 216:
+    # Live Forecast: 168h history (past) + 48h forecast (future)
+    options = []
+    for i in range(216):
+        rel_h = i - 168
+        label = f"T{rel_h}h" if rel_h < 0 else ("T+0h (Current)" if rel_h == 0 else f"T+{rel_h}h")
+        if hecras_timestamps and i < len(hecras_timestamps):
+            label += f" | {hecras_timestamps[i]}"
+        options.append(label)
+elif n_steps == 48:
+    # Demo Cevenol Storm: 24h warm-up (past) + 24h event (future)
+    options = []
+    for i in range(48):
+        rel_h = i - 24
+        label = f"T{rel_h}h" if rel_h < 0 else ("T+0h (Current)" if rel_h == 0 else f"T+{rel_h}h")
+        if hecras_timestamps and i < len(hecras_timestamps):
+            label += f" | {hecras_timestamps[i]}"
+        options.append(label)
+elif is_real_hecras and hecras_timestamps:
     options = hecras_timestamps
 else:
     options = [f"T+{i}h" for i in range(n_steps)]
@@ -689,6 +713,7 @@ with col1:
         flow_bitmap_layer = None
         flow_tooltip_layer = None
         hdf5_plan_files = {
+            "Active Simulation (Latest Recomputed)": paths.RAW.parent / "hec-ras" / "CAPSTONE_JN_L752_PK.p02.hdf",
             "P01: R100_1HR (100mm rainfall storm, 1h)": paths.RAW.parent / "hec-ras" / "CAPSTONE_JN_L752_PK.p01.hdf",
             "P02: 21SEP2025 (Historical event, 21h)": paths.RAW.parent / "hec-ras" / "CAPSTONE_JN_L752_PK.p02.hdf",
             "P02_DEMO: Synthetic Demonstration Storm": paths.RAW.parent / "hec-ras" / "21092025" / "PostProcessing_demo.hdf",
