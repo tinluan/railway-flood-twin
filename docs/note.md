@@ -567,5 +567,33 @@ flowchart TD
 4. **Data Extraction**: The `HECRASPlanReader` reads the new HDF5 datasets and exports the downsampled node results to the dashboard's JSON output directory.
 5. **Dashboard Refresh**: The Streamlit application clears its frontend cache and reloads the map and tables with the newly computed WSE values.
 
+---
+
+## 21. Soil Water Index (SWI) Threshold Calibration Heuristics
+
+### Question
+Why are the SWI trigger and saturation midpoint thresholds set to 100 mm and 150 mm? How do these values map to physical soil behavior, and how should they be calibrated for new corridors?
+
+### Response
+
+The Soil Water Index (SWI) represents the cumulative water depth retained in the active soil column. The selection of **100 mm** as the HEC-RAS trigger and **150 mm** as the saturation midpoint ($SWI_{\text{mid}}$) is rooted in soil physics and empirical calibration:
+
+#### 1. Physical Significance (The "Soil Sponge" Capacity)
+* **Soil Porosity**: Typically, air-filled pore space accounts for 30% to 50% of total soil volume. In a 1-meter-deep active soil profile, this translates to a maximum holding capacity of 300 mm to 500 mm.
+* **Field Capacity vs. Gravity Drainage**: Below 100 mm, surface tension holds water tightly in capillary pores, allowing it to slowly drain downward. Once the soil water equivalent exceeds **100 mm** (Field Capacity), capillary spaces are full. Additional rainfall cannot infiltrate efficiently, generating substantial horizontal surface runoff.
+* **Midpoint ($SWI_{\text{mid}} = 150\text{ mm}$)**: At this moisture depth, the soil column is at near-saturation. The sigmoid runoff coefficient transitions to its maximum ($C_{\text{runoff}} \approx 0.90$), meaning almost all subsequent rainfall is converted directly to active overland flow.
+
+#### 2. Calibration Methodology
+When deploying to a new railway corridor, these parameters cannot be assumed and must be optimized:
+
+1. **Incidence Mapping**: Collect historical logs of track-flooding incidents, ballast washouts, and speed restrictions along the corridor over a multi-year period.
+2. **Rainfall Replay**: Feed the corresponding historical rainfall timeseries into the SWI calculator.
+3. **Threshold Optimization Loop**:
+   * Vary the trigger threshold ($SWI_{\text{trigger}}$) and midpoint ($SWI_{\text{mid}}$) systematically.
+   * If thresholds are too low (e.g. $50\text{ mm}$), the digital twin will trigger false-alarm HEC-RAS runs during minor events.
+   * If thresholds are too high (e.g. $250\text{ mm}$), HEC-RAS will fail to trigger during real flood incidents (dangerous misses).
+4. **Parameter Selection**: Find the optimal balance that maximizes the True Positive rate (capturing 100% of historical flood events) while minimizing False Positives (filtering out uncritical rainfall). For the Tartaiguille corridor, 100 mm and 150 mm represent this optimized envelope.
+
+
 
 
