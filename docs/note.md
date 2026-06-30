@@ -478,3 +478,33 @@ Unlike the track platform which scales thresholds down from the rail height, dra
   $$\text{red\_z\_m} = \text{invert\_bottom\_m} + \text{height\_m}$$
 * **🟠 Orange Threshold (`orange_z_m`)**: The water level reaches half-capacity (50% of vertical height):
   $$\text{orange\_z\_m} = \text{invert\_bottom\_m} + (0.50 \times \text{height\_m})$$
+
+---
+
+## 18. Alert Threshold Settings across Different Asset Categories
+
+### Question
+Each asset has a different way of threshold calculation (e.g. for track, orange is Z_DTM - 0.5 m). How are thresholds set for other asset categories like tracks, drainage, and bridges?
+
+### Response
+
+The flood alert engine implements category-specific physical calibrations to map the Water Surface Elevation (WSE) directly to RAMS-compliant warnings:
+
+#### 1. Track & Embankment Assets (`Voie_seg_XX` & `Talus_Terre_XX`)
+These thresholds are calculated relative to the **Top of the Rail elevation ($Z_{\text{DTM}}$)**:
+*   **🔴 RED**: $Z_{\text{DTM}}$ (water reaches the top of the steel rail, submerging track platform).
+*   **🟠 ORANGE**: $Z_{\text{DTM}} - 0.5\text{ m}$ (water reaches the bottom base of the ballast layer, risk of scour).
+*   **🟡 YELLOW**: $Z_{\text{DTM}} - 2.0\text{ m}$ (water reaches the toe of the embankment slope, monitoring mode).
+
+#### 2. Drainage Assets (Culverts: `Buse_XX` / `Dalot_XX` & Ditches: `Fosse_XX`)
+Drainage thresholds are set based on their **internal dimensions** (invert elevation and height) to monitor hydraulic capacity:
+*   **🔴 RED**: $\text{Invert Bottom} + \text{Height}$ (fully submerged, pipe under pressure flow, or ditch overflowing).
+*   **🟠 ORANGE**: $\text{Invert Bottom} + (0.50 \times \text{Height})$ (water reaches 50% capacity/half-full).
+*   **🟡 YELLOW**: $\text{Invert Bottom}$ (water first enters the bottom flow-line of the pipe/channel).
+
+#### 3. Railway Bridges (`Pont_Rail_XX`)
+Bridges use structural clearance and freeboard design parameters:
+*   **🔴 RED**: Bridge Deck Elevation (water overtopping the bridge deck and tracks).
+*   **🟠 ORANGE**: $\text{Bridge Girder Bottom} + 0.5\text{ m}$ (reduced safety freeboard, threatening debris collision).
+*   **🟡 YELLOW**: Girder Bottom Elevation (water level rises to touch the lowest point of the superstructure).
+
