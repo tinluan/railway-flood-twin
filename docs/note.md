@@ -538,4 +538,34 @@ On flat ground or shallow embankments, the dry ground surface is physically high
 #### 3. UI Coloring Logic
 The dashboard applies a flat check: **any positive margin ($>0$) is colored in Red/Orange** to indicate a threshold breach, even if the track status is still GREEN (since the dry ground is safely below the ballast base / Orange line).
 
+---
+
+## 20. Operational Recomputation Cycle (Plan P02)
+
+### Question
+What is the exact data flow of the live recomputation cycle when a user triggers a Fetch & Recompute, and how does it map to HEC-RAS files?
+
+### Response
+
+The operational recomputation cycle targets **Plan P02** (21SEP2025 Cévenol Storm) to execute the simulation using fresh rainfall data:
+
+```mermaid
+flowchart TD
+    API["Open-Meteo API"] -->|Fetch live/forecast rainfall| Ingest["Rainfall Ingestion (Data Ingestor)"]
+    Ingest -->|Inject rainfall series| FlowFile["CAPSTONE_JN_L752_PK.u02 (Unsteady Flow File)"]
+    FlowFile -->|Trigger COM Run| HECRAS["HEC-RAS COM Engine (runs Plan 2)"]
+    HECRAS -->|Simulate and write 2D grid| HDF5["CAPSTONE_JN_L752_PK.p02.hdf (HDF5 Output)"]
+    HDF5 -->|Extract cell-by-cell WSE| Reader["HECRAS HDF5 Reader"]
+    Reader -->|Export calculated values| JSON["hecras_wse_results.json (Dashboard JSON)"]
+    JSON -->|Load & refresh UI| UI["Digital Twin Dashboard (Plan P02: 21SEP2025)"]
+```
+
+#### Detailed Flow:
+1. **API Ingestion**: Real-time or demo scenario rainfall is retrieved by the `RainfallIngestor`.
+2. **Flow File Update**: The hourly precipitation values are parsed and injected directly into the `.u02` unsteady flow file (updating the `Precipitation Hydrograph` section).
+3. **Execution**: The HEC-RAS COM server is started, runs the `p02` plan, and saves the 2D grid simulation output to `.p02.hdf`.
+4. **Data Extraction**: The `HECRASPlanReader` reads the new HDF5 datasets and exports the downsampled node results to the dashboard's JSON output directory.
+5. **Dashboard Refresh**: The Streamlit application clears its frontend cache and reloads the map and tables with the newly computed WSE values.
+
+
 
