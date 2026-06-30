@@ -309,10 +309,20 @@ graph TD
 
 *Figure 7: Decoupled data flow diagram. The SWI serves only as a binary trigger — the full gross rainfall is passed to HEC-RAS, which handles infiltration internally to avoid double-counting losses.*
 
-#### 4.4.2 Pre-Computed HDF5 Plans
-Because a live HEC-RAS 2D simulation takes approximately 30 minutes to complete, the current project uses a fast **HDF5 Reader (`hecras_hdf5_reader.py`)** to load pre-computed, high-fidelity HEC-RAS results directly:
-1. **Historical Showcase (Plan 2 / `21092025`)**: Represents the historical September 21, 2025 Cévenol storm event. It contains **127 timesteps** at **10-minute intervals** (spanning 21 hours).
-2. **Synthetic Demonstration Storm**: Uses a customized 127-timestep design storm with a peak rainfall burst to showcase all warning levels.
+#### 4.4.2 Recomputation Bridge & Pre-Computed HDF5 Plans
+While a live HEC-RAS 2D simulation takes approximately 2.5 minutes to run, the system uses a hybrid approach featuring both an active **HEC-RAS COM Bridge (`hecras_bridge.py`)** for live recomputation and a fast **HDF5 Reader (`hecras_hdf5_reader.py`)** for reading results:
+
+1. **HEC-RAS COM Bridge (`hecras_bridge.py`)**: Runs live simulation cycles by:
+   * Parsing API forecast rainfall and programmatically writing it into the unsteady flow file (`.u02`) for Plan P02.
+   * Invoking the HEC-RAS COM server via `RAS67.HECRASController` to trigger the computation.
+   * **Multi-threaded COM Stability**: Streamlit button events run on background worker threads, which throws `CoInitialize` errors on COM calls. The bridge implements explicit `pythoncom.CoInitialize()` and `pythoncom.CoUninitialize()` blocks to enable safe execution on any thread.
+   * **Zombie Process Prevention**: Manual or mid-run computation stops leave the COM server (`HECRAS.exe`) running as a background zombie process, locking project files. The bridge's `close()` method integrates a subprocess `taskkill` routine to forcefully clean up leftover HEC-RAS processes.
+
+2. **HDF5 Reader (`hecras_hdf5_reader.py`)**: Reads simulated WSE values directly from output files without requiring HEC-RAS software to run, using h5py.
+   * **Geometry Sibling Fallback**: HEC-RAS results-only HDF5 files (like `.p02.hdf`) omit the `Geometry/` group. The reader automatically detects this and falls back to loading the spatial coordinates (cell centers, elevations, face orientations) from the sibling geometry file (`CAPSTONE_JN_L752_PK.g01.hdf`) located in the same directory.
+   * **Dashboard Showcase Plans**:
+     * **Historical Showcase (Plan P02)**: Historical September 2025 Cévenol storm event. It contains **127 timesteps** at **10-minute intervals**.
+     * **Active Simulation**: Displays the results of the latest recomputed forecast cycle (216 timesteps, spanning 7 days history + 48h forecast).
 
 *Table 8: HEC-RAS HDF5 result structure and data dimensions.*
 
