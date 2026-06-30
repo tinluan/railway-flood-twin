@@ -207,12 +207,13 @@ graph TD
     RU --> S["Section_11 Overall Status"]
 ```
 
-**Threshold Summary:**
+**Threshold Summary Table:**
 
-| Asset Type | 🟡 Yellow | 🟠 Orange | 🔴 Red |
+| Asset Category | 🟡 Yellow | 🟠 Orange | 🔴 Red |
 | :--- | :--- | :--- | :--- |
-| **Track** | $Z_{DTM} - 2.0\text{m}$ | $Z_{DTM} - 0.5\text{m}$ | $Z_{DTM}$ (rail top) |
-| **Drainage** | Invert bottom | Invert + 50% Height | Invert + Height |
+| **Track & Embankment** | $Z_{DTM} - 2.0\text{ m}$ (Slope toe) | $Z_{DTM} - 0.5\text{ m}$ (Ballast base) | $Z_{DTM}$ (Top of rail) |
+| **Drainage (Culvert/Ditch)** | Invert bottom | Invert bottom + 50% Height | Invert bottom + Height (100% full) |
+| **Bridges** | Girder bottom | Girder bottom + 0.5m freeboard | Bridge deck level (overtopped) |
 
 ---
 
