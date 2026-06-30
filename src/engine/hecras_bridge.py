@@ -280,7 +280,7 @@ class HECRASBridge:
     # ------------------------------------------------------------------
     # Recomputation Pipeline
     # ------------------------------------------------------------------
-    def update_precipitation(self, rainfall_csv_path: str, plan_id: str = "p01") -> bool:
+    def update_precipitation(self, rainfall_csv_path: str, plan_id: str = "p02") -> bool:
         """
         Updates the HEC-RAS Unsteady Flow (.uXX) file to inject new rainfall data.
         This modifies the plain-text unsteady flow file programmatically since the
@@ -361,7 +361,7 @@ class HECRASBridge:
             print(f"[HECRASBridge] Failed to update precipitation: {e}")
             return False
 
-    def recompute_and_extract(self, rainfall_csv_path: str, plan_id: str = "p01", wait: bool = True):
+    def recompute_and_extract(self, rainfall_csv_path: str, plan_id: str = "p02", wait: bool = True):
         """
         Full pipeline: Update precipitation, run HEC-RAS, and trigger HDF5 extraction.
         

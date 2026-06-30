@@ -110,7 +110,7 @@ async def trigger_cycle(request: CycleRequest = CycleRequest()):
     description="Forces a full unsteady flow computation in HEC-RAS using "
                 "the latest rainfall data. Requires HEC-RAS 6.7 installed.",
 )
-async def trigger_hecras_recompute(plan_id: str = "p01"):
+async def trigger_hecras_recompute(plan_id: str = "p02"):
     """Manually trigger HEC-RAS run."""
     try:
         # We will implement this fully in Component 4.

@@ -143,8 +143,8 @@ class PipelineOrchestrator:
                     
                     with HECRASBridge() as bridge:
                         bridge.open_project(str(prj_path))
-                        # For demonstrator, we assume plan p01
-                        success = bridge.recompute_and_extract(str(rain_path), plan_id="p01", wait=True)
+                        # Operational plan is p02 (21SEP2025 Cévenol storm, active plan in HEC-RAS project)
+                        success = bridge.recompute_and_extract(str(rain_path), plan_id="p02", wait=True)
                         
                         if success:
                             result["message"] += f"HEC-RAS recomputed successfully. "
@@ -153,7 +153,7 @@ class PipelineOrchestrator:
                             from src.engine.hecras_hdf5_reader import HECRASPlanReader
                             import json
                             
-                            hdf5_path = prj_path.with_suffix(".p01.hdf")
+                            hdf5_path = prj_path.with_suffix(".p02.hdf")
                             if hdf5_path.exists():
                                 reader = HECRASPlanReader(str(hdf5_path))
                                 reader.refresh_from_latest_run()

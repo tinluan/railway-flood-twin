@@ -13,7 +13,7 @@ def extract_real_wse():
     
     # 1. Path to HDF5
     prj_path = paths.DATA / HECRAS_PROJECT_DIR / f"{HECRAS_PRJ_NAME}.prj"
-    hdf5_path = prj_path.with_suffix(".p01.hdf")
+    hdf5_path = prj_path.with_suffix(".p02.hdf")
     
     if not hdf5_path.exists():
         print(f"ERROR: HDF5 file not found at {hdf5_path}")
