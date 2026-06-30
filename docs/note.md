@@ -594,6 +594,65 @@ When deploying to a new railway corridor, these parameters cannot be assumed and
    * If thresholds are too high (e.g. $250\text{ mm}$), HEC-RAS will fail to trigger during real flood incidents (dangerous misses).
 4. **Parameter Selection**: Find the optimal balance that maximizes the True Positive rate (capturing 100% of historical flood events) while minimizing False Positives (filtering out uncritical rainfall). For the Tartaiguille corridor, 100 mm and 150 mm represent this optimized envelope.
 
+---
+
+## 22. Embankment & Ballast Scour Risk Evaluation (Voie_seg_18)
+
+### Question
+Why is `Voie_seg_18` flagged at high risk (77% risk score, red indicator) at T+45h, even though the overall section status is ORANGE and the track itself is not submerged?
+
+### Response
+
+The alert engine evaluates risk dynamically using a combination of structural thresholds and log-normal fragility curves:
+
+#### 1. Threshold Breach Details (T+45h)
+* **Top of Rail elevation ($Z_{\text{DTM}}$ / Red Z)**: $235.74\text{ m}$ (water overtopping the track platform).
+* **Ballast Base elevation (Orange Z)**: $235.74 - 0.5\text{ m} = 235.24\text{ m}$ (base of the ballast layer).
+* **Simulated Water WSE**: **$235.29\text{ m}$**.
+* **Result**: The water level is **5 cm higher** than the ballast base.
+  $$\text{Track Margin} = 235.29\text{ m} - 235.24\text{ m} = \mathbf{+0.05\text{ m}}$$
+  Because the ballast base is breached but the steel rail is not yet covered, the track status is evaluated as **ORANGE**.
+
+#### 2. Fragility Curve Mapping (77% Risk)
+* A positive margin of **+5 cm** above the ballast base means water is soaking and scouring the supporting ballast structure.
+* The **Combined Fragility Curve** (log-normal distribution) maps this 5 cm overtopping depth to a **77% probability of structural failure (erosion/scour)**.
+* Because a 77% failure risk is severe, the Top 5 list highlights it in **RED** to warn operators.
+
+#### 3. Operational Action
+The system dispatches a **Speed Restriction of 30 km/h** to ensure trains traverse the weakened ballast structure safely.
+
+#### 4. Reference Visuals
+* **Dashboard Screenshot**: [user_voie_seg_18_risk.png](../report/figures/user_voie_seg_18_risk.png)
+* **Engineering Cross-Section**: [track_risk_scour.png](../report/figures/track_risk_scour.png)
+
+---
+
+## 23. Railway Bridge Clearance Safety (Pont_Rail_2)
+
+### Question
+Why is the bridge `Pont_Rail_2` shown with 0% risk (blue indicator) on the map, even though there is water flowing underneath it?
+
+### Response
+
+Bridges use structural clearance and safety freeboard thresholds rather than surface overtopping metrics:
+
+#### 1. Bridge Threshold Specifications
+* **Girder Bottom (Yellow Z)**: $239.05\text{ m}$ (lowest point of superstructure, where water touches the bridge).
+* **Girder Bottom + 0.5m (Orange Z)**: $245.52\text{ m}$.
+* **Bridge Deck (Red Z)**: $246.02\text{ m}$ (water overtopping the deck and tracks).
+
+#### 2. Current Clearance Gap (T+45h)
+* **Simulated Water WSE**: **$232.36\text{ m}$** (flowing in the riverbed channel below the bridge).
+* **Water Depth**: **$0.14\text{ m}$** (shallow 14 cm flow).
+* **Result**: The water level is **6.69 meters below** the lowest bridge beam.
+  $$\text{Current WSE (232.36 m)} \ll \text{Girder Bottom (239.05 m)}$$
+  Since there is zero hydraulic threat to the bridge superstructure, the asset risk is **0%** and the map marker remains safely blue.
+
+#### 3. Reference Visuals
+* **Dashboard Screenshot**: [user_pont_rail_2_safe.png](../report/figures/user_pont_rail_2_safe.png)
+* **Engineering Diagram**: [bridge_clearance_safety.png](../report/figures/bridge_clearance_safety.png)
+
+
 
 
 
