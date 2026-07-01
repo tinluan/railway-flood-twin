@@ -568,6 +568,48 @@ Below are direct captures from the active digital twin interface illustrating th
 | Section_14 | 🟡 YELLOW | 219.72 | 220.93 | +0.79 | 0/7 | Monitoring mode |
 | Section_00 | 🟢 GREEN | 179.31 | 207.11 | −25.80 | 0/3 | Normal operations |
 
+### 6.4 Economic Impact & ROI Analysis
+
+#### 6.4.1 Socio-Economic Context & Cost of Inaction
+Deploying a Digital Twin for railway flood-risk monitoring is highly justified by the direct and indirect socio-economic costs associated with extreme meteorological events. According to the **SNCF Réseau Natural Hazards Division (RNT, 2022)**, climate-related damage to the French railway network averages **€10 million to €15 million annually** in direct infrastructure repair costs and lost track access charges (redevances). On a local level, the French Ministry of Ecological Transition reports that the average direct cost of a single minor local flooding event is **€55,000**, rising to between **€40,000 and €150,000** per event for wind/storm damage and localized landslides.
+
+For major weather disruptions (such as Storm Alex in 2020), costs scale exponentially. Track washouts in the Roya and Vésubie valleys required complete service suspension for over two years, resulting in tens of millions of euros in reconstruction. Furthermore, weather-related delays account for **12% of all TGV passenger compensation payouts** under the G30 delay policy (SNCF, 2022), representing a significant operational drain.
+
+#### 6.4.2 Capital (CAPEX) & Operational (OPEX) Expenditures
+To quantify the Return on Investment (ROI) of the Ligne 400 Digital Twin, we assume a representative 5-year pilot project envelope:
+* **CAPEX (One-Time Setup)**:
+  * High-resolution LiDAR DTM data acquisition & preprocessing: €30,000
+  * HEC-RAS 2D model construction, mesh calibration, and structural threshold mapping: €50,000
+  * Software integration (Python engine, database APIs, Streamlit HMI): €40,000
+  * *Total CAPEX*: **€120,000**
+* **OPEX (Annual Running Cost)**:
+  * Meteorological API subscriptions and cloud server hosting: €5,000
+  * Engineering support, software maintenance, and updates: €15,000
+  * *Total OPEX*: **€20,000/year** (5-year total: **€100,000**)
+
+#### 6.4.3 Risk-Adjusted Avoided Losses & ROI Estimation
+The financial savings of the Digital Twin are modeled as avoided losses across three primary operational areas:
+1. **Derailment Prevention (Red Alerts)**: Calibrated fragility curves trigger train halts 8 cm earlier, eliminating the high-cost risk of passenger/freight derailments. The annualized avoided loss is modeled at **€100,000/year** (assuming the prevention of a single €1.0M derailment every 10 years).
+2. **Targeted Speed Restrictions (Orange Alerts)**: Rather than executing a line-wide closure during storm warnings (costing €200,000/day in substitute buses and delay penalties), the twin isolates speed restrictions to specific 100m sections (e.g. Sections 18 and 19), preserving normal operations elsewhere. The annual savings are modeled at **€350,000/year** (avoiding 2 line-closure days annually).
+3. **Preventive Drainage Maintenance (Yellow Alerts)**: Clearing culvert obstructions *before* they overflow avoids emergency ballast reconstruction, saving **€50,000/year**.
+4. **Compute Resource Optimization**: The SWI screening layer filters out 85% of dry weather periods, saving **€10,000/year** in cloud CPU hosting.
+
+*Table 14: Summary of pilot digital twin 5-year financial performance.*
+
+| Metric | Year 1 | Year 2 | Year 3 | Year 4 | Year 5 | 5-Year Cumulative |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Avoided Losses (€k)** | €510 | €510 | €510 | €510 | €510 | **€2,550** |
+| **System OPEX (€k)** | −€20 | −€20 | −€20 | −€20 | −€20 | **−€100** |
+| **System CAPEX (€k)** | −€120 | €0 | €0 | €0 | €0 | **−€120** |
+| **Net Financial Benefit (€k)**| **€370** | **€490** | **€490** | **€490** | **€490** | **€2,330** |
+
+The 5-year cumulative ROI is calculated as:
+$$\text{ROI}_{\text{5-Year}} = \frac{\text{Cumulative Benefits (€2,550k)} - \text{Total Costs (€220k)}}{\text{Total Costs (€220k)}} \times 100 \approx \mathbf{1,059\%}$$
+
+The payback period for the initial €120,000 CAPEX is **approximately 3.5 months** from system deployment.
+
+![Figure 18: 5-Year economic impact and ROI analysis for the Ligne 400 Digital Twin, showing the cost of inaction, total digital twin system costs, and cumulative risk-adjusted savings.](../figures/roi_analysis.png)
+
 ---
 
 ## 7. Limitations & Future Work

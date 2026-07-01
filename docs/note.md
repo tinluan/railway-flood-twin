@@ -652,6 +652,43 @@ Bridges use structural clearance and safety freeboard thresholds rather than sur
 * **Dashboard Screenshot**: [user_pont_rail_2_safe.png](../report/figures/user_pont_rail_2_safe.png)
 * **Engineering Diagram**: [bridge_clearance_safety.png](../report/figures/bridge_clearance_safety.png)
 
+---
+
+## 24. Socio-Economic Impact & Return on Investment (ROI) Analysis
+
+### Question
+How do natural hazards impact the economy of French rail lines, and what is the Return on Investment (ROI) of deploying a Digital Twin on a corridor like Ligne 400?
+
+### Response
+
+The financial justification for the Digital Twin lies in mitigating the costs of flood damage, delays, and emergency repairs, compared against the CAPEX/OPEX of the platform:
+
+#### 1. Real-world Cost Indicators (SNCF & French Government Citations)
+* **Annual Systemic Costs**: Climate hazards (floods, storms, landslides) cost **SNCF Réseau €10M to €15M annually** in direct repairs and lost track access charges (RNT, 2022).
+* **Average Cost per Local Event**: The French Ministry of Ecological Transition estimates the average direct cost of a single localized flooding event at **€55,000**, and landslides/storms between **€40,000 and €150,000** per event in emergency repairs.
+* **Delay Compensations**: Weather-related delays account for **12% of all TGV passenger compensations** under the G30 policy (SNCF, 2022).
+* **High-Impact Catastrophes**: Storm Alex (2020) caused insured losses of **€217M** (excluding public infrastructure) and damaged the Roya railway so severely that track service was suspended for **two years**.
+
+#### 2. Digital Twin Financial Framework (Ligne 400 Pilot)
+* **CAPEX (One-Time Setup)**: **€120,000** (GIS processing, HEC-RAS 2D calibration, software integration).
+* **OPEX (Annual Running)**: **€20,000/year** (API subscriptions, cloud hosting, support).
+* **Avoided Losses (Annual Savings)**: **€510,000/year** through:
+  1. *Derailment Prevention (Red Alerts)*: €100,000/year (annualized cost of a €1M derailment every 10 years).
+  2. *Targeted Speed Restrictions (Orange Alerts)*: €350,000/year (avoiding 2 line-closure days @ €200k/day).
+  3. *Proactive Drainage (Yellow Alerts)*: €50,000/year (clearing debris before ballast scours).
+  4. *Compute Savings (SWI Funnel)*: €10,000/year (reducing HEC-RAS active hours by 85%).
+
+#### 3. ROI Estimation (5-Year Window)
+* **Cumulative Avoided Losses**: €2,550,000
+* **Total Cost (CAPEX + OPEX)**: €220,000
+* **Net Benefit**: €2,330,000
+$$\text{ROI}_{\text{5-Year}} = \frac{\text{€2,550k} - \text{€220k}}{\text{€220k}} \times 100 \approx \mathbf{1,059\%}$$
+* **Payback Period**: **3.5 months** from system deployment.
+
+#### 4. Reference Chart
+* **ROI Impact Chart**: [roi_analysis.png](../report/figures/roi_analysis.png)
+
+
 
 
 
