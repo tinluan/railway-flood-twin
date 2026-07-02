@@ -292,12 +292,12 @@ Rather than pushing raw precipitation forecasts directly to HEC-RAS or running s
 
 ```mermaid
 graph TD
-    Raw["Raw Rainfall: R(t) (mm/h)"] -->|Multiplied by| Scale["Rainfall Scaling"]
-    SWI["Soil Moisture: SWI(t) (mm)"] -->|Sigmoid Function| Runoff["Runoff Coeff: C_runoff (10%-90%)"]
+    Raw["Raw Rainfall: R_t (mm/h)"] -->|Multiplied by| Scale["Rainfall Scaling"]
+    SWI["Soil Moisture: SWI_t (mm)"] -->|Sigmoid Function| Runoff["Runoff Coeff: C_runoff"]
     Runoff --> Scale
-    Scale -->|Calculates| Active["Active Runoff: R_active(t) (mm/h)"]
-    Active -->|COM Boundary Injection| HECRAS["HEC-RAS 2D Engine (Infiltration = 0)"]
-    HECRAS -->|Hydraulic Routing| WSE["Water Surface Elevation (WSE)"]
+    Scale -->|Calculates| Active["Active Runoff: R_active"]
+    Active -->|COM Boundary Injection| HECRAS["HEC-RAS 2D Engine - Infiltration 0"]
+    HECRAS -->|Hydraulic Routing| WSE["Water Surface Elevation"]
 ```
 
 *Table 8: Comparative example of raw rainfall vs. actual values pushed to HEC-RAS.*
@@ -337,7 +337,7 @@ A critical aspect of the system's coupling logic is that **the SWI serves as a g
 graph TD
     Rain["Gross Rainfall Forecast"] --> SWI{"SWI exceeds 100mm?"}
     SWI -- Yes --> Scale["Scale Rainfall by C_runoff"]
-    Scale -->|R_active(t)| HECRAS["HEC-RAS 2D Engine (Infiltration = 0)"]
+    Scale -->|R_active| HECRAS["HEC-RAS 2D Engine - Infiltration 0"]
     HECRAS --> WSE["Generate Physical WSE Output"]
 ```
 
