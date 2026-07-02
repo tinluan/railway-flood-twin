@@ -316,6 +316,17 @@ graph TD
 
 *Figure 7: Decoupled data flow diagram. The SWI serves only as a binary trigger — the full gross rainfall is passed to HEC-RAS, which handles infiltration internally to avoid double-counting losses.*
 
+*Table 8: Division of labor between the SWI hydrological screening layer and HEC-RAS 2D hydraulic layer.*
+
+| Dimension | Soil Water Index (SWI) Layer | HEC-RAS 2D Hydraulics Layer |
+| :--- | :--- | :--- |
+| **Role** | Computational Switch (Gatekeeper) | Hydraulic Simulator (Router) |
+| **Input Data** | Cumulative 1D Rainfall Time Series | Complete Gross Rainfall Time Series |
+| **Physics Mode** | Leaky Bucket Soil Saturation | 2D Shallow Water Equations |
+| **Trigger Logic** | Active only when SWI exceeds 100 mm | Runs to 100% completion once activated |
+| **Infiltration** | Screens for antecedent saturation | Solves infiltration loss dynamically per grid cell |
+| **Safety Purpose** | Prevents redundant HEC-RAS runs (95% savings) | Simulates real-world WSE & scour risk at assets |
+
 #### 4.4.2 Recomputation Bridge & Pre-Computed HDF5 Plans
 While a live HEC-RAS 2D simulation takes approximately 2.5 minutes to run, the system uses a hybrid approach featuring both an active **HEC-RAS COM Bridge (`hecras_bridge.py`)** for live recomputation and a fast **HDF5 Reader (`hecras_hdf5_reader.py`)** for reading results:
 

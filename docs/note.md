@@ -685,8 +685,47 @@ The financial justification for the Digital Twin lies in mitigating the costs of
 $$\text{ROI}_{\text{5-Year}} = \frac{\text{€2,550k} - \text{€220k}}{\text{€220k}} \times 100 \approx \mathbf{1,059\%}$$
 * **Payback Period**: **3.5 months** from system deployment.
 
-#### 4. Reference Chart
 * **ROI Impact Chart**: [roi_analysis.png](../report/figures/roi_analysis.png)
+
+---
+
+## 25. Hydrology Coupling & Infiltration Loss Division (Python vs. HEC-RAS)
+
+### Question
+Does the Digital Twin scale/modify the rainfall before pushing it to HEC-RAS, or does it push the raw rainfall and let HEC-RAS handle soil absorption internally?
+
+### Response
+
+The system implements a **Decoupled Data Flow** architecture where soil hydrology and 2D hydraulics are separated to prevent double-counting of water losses and optimize calculation performance:
+
+#### 1. Coupling Pipeline Diagram
+
+```mermaid
+graph TD
+    Rain["Gross Rainfall Forecast R(t)<br>(API or CSV)"] --> SWI{"SWI Layer: SWI(t) > 100mm?"}
+    SWI -- No --> Halt["Halt Pipeline<br>(Maintain GREEN Alert)"]
+    SWI -- Yes --> Trigger["Trigger HEC-RAS Bridge<br>(hecras_bridge.py)"]
+    Rain -->|Inject Raw Rainfall R(t)| Trigger
+    Trigger --> HECRAS["HEC-RAS 2D Engine<br>(Computes flow hydraulics)"]
+    HECRAS --> Infiltration["Solve Infiltration Losses<br>(Internal Deficit-Constant Model)"]
+    HECRAS --> WSE["Generate WSE Output<br>(Written to .p02.hdf)"]
+```
+
+#### 2. Division of Labor Table
+
+| Dimension | Soil Water Index (SWI) Layer | HEC-RAS 2D Hydraulics Layer |
+| :--- | :--- | :--- |
+| **Role** | Computational Switch (Gatekeeper) | Hydraulic Simulator (Router) |
+| **Input Data** | Cumulative 1D Rainfall Time Series | Complete Gross Rainfall Time Series |
+| **Physics Mode** | Leaky Bucket Soil Saturation | 2D Shallow Water Equations |
+| **Trigger Logic** | Active only when SWI exceeds 100 mm | Runs to 100% completion once activated |
+| **Infiltration** | Screens for antecedent saturation | Solves infiltration loss dynamically per grid cell |
+| **Safety Purpose** | Prevents redundant HEC-RAS runs (95% savings) | Simulates real-world WSE & scour risk at assets |
+
+#### 3. Core Architectural Rules
+* **No Double-Counting**: Python does **not** pre-subtract soil infiltration losses. If we pre-subtracted soil absorption and only passed the net runoff to HEC-RAS, HEC-RAS would apply its internal soil infiltration tables to that net runoff, double-counting the losses and dangerously underestimating flood heights.
+* **Separation of Concerns**: Python handles the temporal gatekeeping (SWI leaky bucket), while HEC-RAS handles the spatial overland routing and terrain-based infiltration losses.
+
 
 
 
