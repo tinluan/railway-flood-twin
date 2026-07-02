@@ -464,17 +464,17 @@ Beyond the half-life, a broader sensitivity analysis was conducted across three 
 
 | Parameter | Variation | Target Metric | Metric Value |
 | :--- | :--- | :--- | :---: |
-| Half-Life (days) | 8 (−20%) | Peak SWI (mm) | 0.4 |
-| Half-Life (days) | 10 (+0%) | Peak SWI (mm) | 0.3 |
-| Half-Life (days) | 12 (+20%) | Peak SWI (mm) | 0.2 |
+| Half-Life (days) | 8 (−20%) | Peak SWI (mm) | 99.5 |
+| Half-Life (days) | 10 (+0%) | Peak SWI (mm) | 99.6 |
+| Half-Life (days) | 12 (+20%) | Peak SWI (mm) | 99.6 |
 | SWI Midpoint (mm) | 120 (−20%) | Runoff Coeff @ SWI=100 | 0.315 |
 | SWI Midpoint (mm) | 150 (+0%) | Runoff Coeff @ SWI=100 | 0.161 |
 | SWI Midpoint (mm) | 180 (+20%) | Runoff Coeff @ SWI=100 | 0.114 |
-| Fragility Median (m) | 0.24 (−20%) | P_fail @ depth=0.30m | 0.712 |
+| Fragility Median (m) | 0.24 (−20%) | P_fail @ depth=0.30m | 0.932 |
 | Fragility Median (m) | 0.30 (+0%) | P_fail @ depth=0.30m | 0.500 |
-| Fragility Median (m) | 0.36 (+20%) | P_fail @ depth=0.30m | 0.324 |
+| Fragility Median (m) | 0.36 (+20%) | P_fail @ depth=0.30m | 0.112 |
 
-**Key finding**: The **SWI midpoint** ($SWI_{mid}$) shows the strongest sensitivity: reducing it by 20% (to 120 mm) nearly doubles the runoff coefficient at SWI=100 (from 0.161 to 0.315). The **fragility median** ($d_{median}$) is also highly sensitive: a −20% shift (to 0.24m) increases failure probability at 30 cm depth from 50% to 71.2%. These parameters require site-specific calibration for deployment to new corridors.
+**Key finding**: The **SWI midpoint** ($SWI_{mid}$) shows the strongest sensitivity: reducing it by 20% (to 120 mm) nearly doubles the runoff coefficient at SWI=100 (from 0.161 to 0.315). The **fragility median** ($d_{median}$) is also highly sensitive: a −20% shift (to 0.24m) increases failure probability at 30 cm depth from 50.0% to 93.2%. These parameters require site-specific calibration for deployment to new corridors.
 
 ### 5.4 Fragility Curve Comparison
 
