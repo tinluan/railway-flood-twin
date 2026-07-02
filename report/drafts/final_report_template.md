@@ -730,6 +730,8 @@ The validation results confirm that the system correctly detects hydraulic threa
 8. Rasheed, A., San, O., & Kvamsdal, T. (2020). "Digital twin: Values, challenges and enablers from a modeling perspective." *IEEE Access*, 8, 21980-22012.
 9. VanDerHorn, E. & Mahadevan, S. (2021). "Digital Twin: Generalization, characterization and implementation." *Decision Support Systems*, 145, 113524.
 10. U.S. Army Corps of Engineers. (2022). *HEC-RAS 2D Modeling User's Manual*. Hydrologic Engineering Center, Davis, CA.
+11. Wagner, W., Lemoine, G., & Rott, H. (1999). "A method for estimating soil moisture from ERS scatterometer data." *IEEE Transactions on Geoscience and Remote Sensing*, 37(4), 1912-1925.
+12. Albergel, C., Rüdiger, C., Pellarin, T., Calvet, J. C., Fritz, N., Martin, E., & Wagner, W. (2008). "From near-surface to root-zone soil moisture using an exponential filter: an evaluation of the method in France." *Journal of Hydrometeorology*, 9(4), 606-620.
 
 ---
 
