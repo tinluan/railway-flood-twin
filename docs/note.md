@@ -181,34 +181,30 @@ If rainfall is 200 mm and the soil absorbs 20 mm, do we subtract 20 mm in Python
 
 ### Response
 
-#### 1. Infiltration Logic: Decoupled Hydrology-to-Hydraulics Handoff
-Yes! In the active Digital Twin implementation, we calculate the soil absorption in Python and push the **active surface runoff** (effective rainfall) to the HEC-RAS boundary files, rather than the raw rainfall.
-
-* **Decoupled Architecture**:
-  * **Soil Saturation Calculation (Python)**: Python calculates the Soil Water Index (SWI) recursively. The **Sigmoid Runoff Coefficient ($C_{\text{runoff}}$)** maps the wetness to a runoff fraction ($10\%$ to $90\%$).
-  * **Rainfall Scaling (Python)**: We scale the raw hourly rainfall $R(t)$ to calculate the net active runoff:
-    $$R_{\text{active}}(t) = R(t) \times C_{\text{runoff}}(SWI)$$
-  * **HEC-RAS 2D Input**: The Python COM bridge (`hecras_bridge.py`) writes this $R_{\text{active}}(t)$ time-series directly into the HEC-RAS Unsteady Flow File (`.u02`) as the boundary precipitation condition.
-  * **Zero Infiltration in HEC-RAS**: HEC-RAS has internal soil infiltration set to **zero**. It acts purely as a routing engine, solving the 2D shallow water equations on the LiDAR mesh without slow, cell-level soil equations. This prevents any double-counting of losses while maximizing model speed.
+#### 1. Infiltration Logic: Send Gross, Not Net Precipitation
+No, we do **not** subtract infiltration losses in Python. The full raw rainfall is written into the HEC-RAS Unsteady Flow File:
+* **The Division of Labor**:
+  * **Python SWI**: Acts purely as a **binary gatekeeper (switch)** and HMI indicator. It decides *whether* to run HEC-RAS based on initial wetness, but it does *not* filter or scale the rainfall forecast.
+  * **HEC-RAS**: Is responsible for computing soil losses internally. It uses its built-in infiltration parameters to calculate how much rainfall is absorbed and how much becomes surface runoff.
+* **The Risk of Double-Counting**: If we subtracted soil absorption in Python first, HEC-RAS would treat the reduced input as gross rainfall and would apply its own soil infiltration losses to it again, leading to an artificially lower flood peak (under-warning risk).
 
 ```mermaid
 graph TD
-    Raw["Raw Rainfall: R(t) (mm/h)"] -->|Multiplied by| Scale["Rainfall Scaling"]
-    SWI["Soil Moisture: SWI(t) (mm)"] -->|Sigmoid Function| Runoff["Runoff Coeff: C_runoff (10%-90%)"]
-    Runoff --> Scale
-    Scale -->|Calculates| Active["Active Runoff: R_active(t) (mm/h)"]
-    Active -->|COM Boundary Injection| HECRAS["HEC-RAS 2D Engine (Infiltration = 0)"]
-    HECRAS -->|Hydraulic Routing| WSE["Water Surface Elevation (WSE)"]
+    Raw["Raw Rainfall: R(t) (mm/h)"] --> SWI{"SWI exceeds 100mm?"}
+    SWI -- Yes --> HECRAS["HEC-RAS 2D Engine"]
+    Raw -->|Pushed directly to BC (.u02)| HECRAS
+    HECRAS --> Infiltration["Compute Infiltration internally"]
+    HECRAS --> WSE["Generate Physical WSE Output"]
 ```
 
-*Table 1: Comparative example of raw rainfall vs. actual values pushed to HEC-RAS.*
+*Table 1: Comparative example of raw rainfall vs. the role of SWI in Python.*
 
-| Simulation Hour | Raw Rain $R(t)$ (mm/h) | Antecedent SWI (mm) | Runoff Coeff $C_{\text{runoff}}$ | Pushed to HEC-RAS $R_{\text{active}}(t)$ (mm/h) | Soil Infiltration (Absorbed) | Soil State Description |
-| :---: | :---: | :---: | :---: | :---: | :---: | :--- |
-| **Hour 1** | 10.0 | 20.0 | 0.101 | **1.01** | 8.99 | Dry soil (minimum baseline runoff) |
-| **Hour 6** | 25.0 | 120.0 | 0.246 | **6.15** | 18.85 | Damp soil (moderate absorption) |
-| **Hour 12** | 30.0 | 150.0 | 0.500 | **15.00** | 15.00 | Inflection point (50% saturation) |
-| **Hour 20** | 40.0 | 250.0 | 0.895 | **35.79** | 4.21 | Fully saturated (maximum runoff) |
+| Simulation Hour | Raw Rain $R(t)$ (mm/h) | Pushed to HEC-RAS (mm/h) | Antecedent SWI (mm) | Runoff Coeff $C_{\text{runoff}}$ | HEC-RAS Treatment |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| **Hour 1** | 10.0 | **10.0** | 20.0 | 0.101 | High infiltration (soil absorbs most water internally) |
+| **Hour 6** | 25.0 | **25.0** | 120.0 | 0.246 | Moderate infiltration (soil begins to saturate) |
+| **Hour 12** | 30.0 | **30.0** | 150.0 | 0.500 | Low infiltration (near-saturation runoff) |
+| **Hour 20** | 40.0 | **40.0** | 250.0 | 0.895 | Minimal infiltration (almost total surface runoff) |
 
 #### 2. How to Verify That the Weather Forecast Input is True
 Because the reliability of HEC-RAS results depends entirely on the accuracy of the rainfall forecast input, we use a three-tiered verification strategy:

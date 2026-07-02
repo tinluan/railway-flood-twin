@@ -281,33 +281,31 @@ The sigmoid curve maps the continuous SWI value to a runoff fraction between $C_
 
 ![Figure 5: Sigmoid runoff coefficient vs. Soil Water Index (SWI). The curve transitions from C_min=0.10 (dry, absorptive soil) to C_max=0.90 (saturated, runoff-dominated) with inflection at SWI_mid=150 mm. The steepness parameter k=0.05 mm⁻¹ controls the transition sharpness.](../figures/Fig03_Sigmoid_Curve.png)
 
-#### 4.3.2 Decoupled Hydrology-to-Hydraulics Handoff
+#### 4.3.2 Decoupled Hydrology-to-Hydraulics Coupling Logic
 
-Rather than pushing raw precipitation forecasts directly to HEC-RAS or running slow cell-level infiltration models within the 2D solver, the Digital Twin uses a decoupled handoff architecture. The Python hydrology layer scales the rainfall forecast and passes the net active runoff to HEC-RAS:
+Rather than performing a double-filtering of rainfall, the Digital Twin implements a strict division of labor between the Python hydrology layer and the HEC-RAS 2D hydraulics engine:
 
-1. **Pre-processing (Python)**: At each time step, Python computes the Soil Water Index (SWI) and active runoff $R_{\text{active}}(t)$ based on the current soil saturation:
-   $$R_{\text{active}}(t) = R(t) \times C_{\text{runoff}}(SWI)$$
-2. **Boundary Condition Injection (COM Bridge)**: The Python bridge writes this scaled $R_{\text{active}}(t)$ time-series directly into the HEC-RAS Unsteady Flow boundary files (`.u02` Precipitation dataset) before launching the solver.
-3. **Pure Hydraulic Routing (HEC-RAS)**: HEC-RAS is configured with soil infiltration losses set to zero. It acts strictly as a surface hydraulic routing engine, solving the 2D shallow water equations on the LiDAR grid. This decoupled strategy prevents double-counting of infiltration losses while avoiding the heavy CPU overhead of solving cell-by-cell ground infiltration equations inside the 2D solver.
+1. **Hydrological Screening (Python)**: At each time step, Python computes the Soil Water Index (SWI) and active runoff $R_{\text{active}}(t)$ based on the current soil saturation. The SWI serves as a **binary gatekeeper** (triggering HEC-RAS only when $SWI > 100\text{ mm}$), while the active runoff is calculated purely for display on the Streamlit HMI dashboard.
+2. **Boundary Condition Injection (COM Bridge)**: The Python bridge writes the **full, gross (raw) rainfall forecast** $R(t)$ directly into the HEC-RAS Unsteady Flow boundary files (`.u02` Precipitation dataset) before launching the solver.
+3. **Infiltration Loss Division (HEC-RAS)**: HEC-RAS is configured to calculate soil infiltration losses internally using its built-in geotechnical loss parameters (e.g., Deficit and Constant method). If the Python script pre-subtracted soil absorption and only passed the net active runoff to HEC-RAS, the hydraulic model would double-count infiltration losses (once in Python and once in HEC-RAS), leading to an under-simulated water depth and dangerous under-warning of flood risk.
 
 ```mermaid
 graph TD
-    Raw["Raw Rainfall: R(t) (mm/h)"] -->|Multiplied by| Scale["Rainfall Scaling"]
-    SWI["Soil Moisture: SWI(t) (mm)"] -->|Sigmoid Function| Runoff["Runoff Coeff: C_runoff (10%-90%)"]
-    Runoff --> Scale
-    Scale -->|Calculates| Active["Active Runoff: R_active(t) (mm/h)"]
-    Active -->|COM Boundary Injection| HECRAS["HEC-RAS 2D Engine (Infiltration = 0)"]
-    HECRAS -->|Hydraulic Routing| WSE["Water Surface Elevation (WSE)"]
+    Raw["Raw Rainfall: R(t) (mm/h)"] --> SWI{"SWI exceeds 100mm?"}
+    SWI -- Yes --> HECRAS["HEC-RAS 2D Engine"]
+    Raw -->|COM Boundary Injection| HECRAS
+    HECRAS --> Infiltration["Compute Infiltration internally"]
+    HECRAS --> WSE["Generate Physical WSE Output"]
 ```
 
-*Table 8: Comparative example of raw rainfall vs. actual values pushed to HEC-RAS.*
+*Table 8: Comparative example of raw rainfall vs. the role of SWI in Python.*
 
-| Simulation Hour | Raw Rain $R(t)$ (mm/h) | Antecedent SWI (mm) | Runoff Coeff $C_{\text{runoff}}$ | Pushed to HEC-RAS $R_{\text{active}}(t)$ (mm/h) | Soil Infiltration (Absorbed) | Soil State Description |
+| Simulation Hour | Raw Rain $R(t)$ (mm/h) | Pushed to HEC-RAS (mm/h) | Antecedent SWI (mm) | Runoff Coeff $C_{\text{runoff}}$ | Python Active Runoff (HMI Only) | HEC-RAS Treatment |
 | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
-| **Hour 1** | 10.0 | 20.0 | 0.101 | **1.01** | 8.99 | Dry soil (minimum baseline runoff) |
-| **Hour 6** | 25.0 | 120.0 | 0.246 | **6.15** | 18.85 | Damp soil (moderate absorption) |
-| **Hour 12** | 30.0 | 150.0 | 0.500 | **15.00** | 15.00 | Inflection point (50% saturation) |
-| **Hour 20** | 40.0 | 250.0 | 0.895 | **35.79** | 4.21 | Fully saturated (maximum runoff) |
+| **Hour 1** | 10.0 | **10.0** | 20.0 | 0.101 | 1.01 | High infiltration (soil absorbs most water internally) |
+| **Hour 6** | 25.0 | **25.0** | 120.0 | 0.246 | 6.15 | Moderate infiltration (soil begins to saturate) |
+| **Hour 12** | 30.0 | **30.0** | 150.0 | 0.500 | 15.00 | Low infiltration (near-saturation runoff) |
+| **Hour 20** | 40.0 | **40.0** | 250.0 | 0.895 | 35.79 | Minimal infiltration (almost total surface runoff) |
 
 #### 4.3.3 Physical Interpretation & Calibration Heuristics
 The SWI trigger ($100\text{ mm}$) and midpoint ($150\text{ mm}$) represent specific soil states rather than raw water depths:
