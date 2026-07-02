@@ -85,9 +85,9 @@ Pedersen (2023) defines three maturity levels:
 
 The Soil Water Index quantifies antecedent soil moisture as a precursor to surface runoff. Siva Subramanian et al. (2025) implemented SWI-based thresholds for Japan's Te-LEWS landslide early warning system. The SWI Leaky Bucket model used in this work follows the recursive formulation:
 
-$$SWI(t) = R(t) + SWI(t-1) \times C$$
+$$SWI(t) = R(t) + SWI(t-1) \cdot C, \quad C = 0.5^{1/(T \times 24)}$$
 
-Where $R(t)$ is rainfall intensity (mm/h), $C = 2^{-1/(T \times 24)}$ is the hourly decay constant, and $T$ is the half-life parameter (days).
+Where $R(t)$ is rainfall intensity (mm/h), $C$ is the hourly decay constant, and $T$ is the half-life parameter in **days**.
 
 ### 2.3 HEC-RAS 2D for Railway Flood Modeling
 
@@ -252,9 +252,9 @@ graph LR
 
 The SWI recursive filter is defined as:
 
-$$SWI(t) = R(t) \cdot (1 - C) + SWI(t-1) \cdot C, \quad C = 0.5^{1/T}$$
+$$SWI(t) = R(t) + SWI(t-1) \cdot C, \quad C = 0.5^{1/(T \times 24)}$$
 
-Where $R(t)$ is rainfall intensity (mm/h), $C$ is the decay constant, and $T$ is the half-life parameter (set to 10 days / 240 hours).
+Where $R(t)$ is rainfall intensity (mm/h), $C$ is the hourly decay constant, $t$ is the hourly timestep, and $T$ is the soil moisture half-life parameter in **days** (set to 10 days, corresponding to 240 hours).
 
 The decay behavior was verified by initializing $SWI = 100\text{ mm}$ and observing the decay over 720 hours without rainfall. As shown in Figure 4, the SWI drops to exactly $50\text{ mm}$ after $10\text{ days}$ ($240\text{ hours}$) and to $25\text{ mm}$ after $20\text{ days}$ ($480\text{ hours}$), confirming correct implementation of the exponential decay filter.
 
