@@ -281,7 +281,35 @@ The sigmoid curve maps the continuous SWI value to a runoff fraction between $C_
 
 ![Figure 5: Sigmoid runoff coefficient vs. Soil Water Index (SWI). The curve transitions from C_min=0.10 (dry, absorptive soil) to C_max=0.90 (saturated, runoff-dominated) with inflection at SWI_mid=150 mm. The steepness parameter k=0.05 mm⁻¹ controls the transition sharpness.](../figures/Fig03_Sigmoid_Curve.png)
 
-#### 4.3.2 Physical Interpretation & Calibration Heuristics
+#### 4.3.2 Decoupled Hydrology-to-Hydraulics Handoff
+
+Rather than pushing raw precipitation forecasts directly to HEC-RAS or running slow cell-level infiltration models within the 2D solver, the Digital Twin uses a decoupled handoff architecture. The Python hydrology layer scales the rainfall forecast and passes the net active runoff to HEC-RAS:
+
+1. **Pre-processing (Python)**: At each time step, Python computes the Soil Water Index (SWI) and active runoff $R_{\text{active}}(t)$ based on the current soil saturation:
+   $$R_{\text{active}}(t) = R(t) \times C_{\text{runoff}}(SWI)$$
+2. **Boundary Condition Injection (COM Bridge)**: The Python bridge writes this scaled $R_{\text{active}}(t)$ time-series directly into the HEC-RAS Unsteady Flow boundary files (`.u02` Precipitation dataset) before launching the solver.
+3. **Pure Hydraulic Routing (HEC-RAS)**: HEC-RAS is configured with soil infiltration losses set to zero. It acts strictly as a surface hydraulic routing engine, solving the 2D shallow water equations on the LiDAR grid. This decoupled strategy prevents double-counting of infiltration losses while avoiding the heavy CPU overhead of solving cell-by-cell ground infiltration equations inside the 2D solver.
+
+```mermaid
+graph TD
+    Raw["Raw Rainfall: R(t) (mm/h)"] -->|Multiplied by| Scale["Rainfall Scaling"]
+    SWI["Soil Moisture: SWI(t) (mm)"] -->|Sigmoid Function| Runoff["Runoff Coeff: C_runoff (10%-90%)"]
+    Runoff --> Scale
+    Scale -->|Calculates| Active["Active Runoff: R_active(t) (mm/h)"]
+    Active -->|COM Boundary Injection| HECRAS["HEC-RAS 2D Engine (Infiltration = 0)"]
+    HECRAS -->|Hydraulic Routing| WSE["Water Surface Elevation (WSE)"]
+```
+
+*Table 8: Comparative example of raw rainfall vs. actual values pushed to HEC-RAS.*
+
+| Simulation Hour | Raw Rain $R(t)$ (mm/h) | Antecedent SWI (mm) | Runoff Coeff $C_{\text{runoff}}$ | Pushed to HEC-RAS $R_{\text{active}}(t)$ (mm/h) | Soil Infiltration (Absorbed) | Soil State Description |
+| :---: | :---: | :---: | :---: | :---: | :---: | :--- |
+| **Hour 1** | 10.0 | 20.0 | 0.101 | **1.01** | 8.99 | Dry soil (minimum baseline runoff) |
+| **Hour 6** | 25.0 | 120.0 | 0.246 | **6.15** | 18.85 | Damp soil (moderate absorption) |
+| **Hour 12** | 30.0 | 150.0 | 0.500 | **15.00** | 15.00 | Inflection point (50% saturation) |
+| **Hour 20** | 40.0 | 250.0 | 0.895 | **35.79** | 4.21 | Fully saturated (maximum runoff) |
+
+#### 4.3.3 Physical Interpretation & Calibration Heuristics
 The SWI trigger ($100\text{ mm}$) and midpoint ($150\text{ mm}$) represent specific soil states rather than raw water depths:
 * **Physical Soil Sponge Analogy**: Air-filled pore space typically comprises 30% to 50% of the soil profile. In a 1-meter-deep active soil layer, this translates to a maximum holding capacity of 300 to 500 mm.
 * **100 mm Trigger (Field Capacity)**: Below 100 mm, capillary forces hold water tightly. Once moisture accumulates past 100 mm, capillary capacity is exceeded (Field Capacity is reached), gravity drainage dominates, and additional rainfall is forced to flow horizontally as overland runoff.
@@ -301,31 +329,19 @@ graph LR
 ### 4.4 Layer 3: HEC-RAS 2D Hydraulic Simulation & HDF5 Ingestion
 
 #### 4.4.1 Coupling Mechanism and Infiltration Loss Division
-A critical aspect of the system's coupling logic is that **the SWI acts strictly as a binary trigger (switch) and does not filter or modify the rainfall data.**
-* **Decoupled Data Flow**: When Python detects that the saturation threshold is breached ($SWI > 100 \text{ mm}$), it triggers the hydraulic model, passing the **entire, unmodified (gross) rainfall dataset** into HEC-RAS.
-* **HEC-RAS Internal Infiltration**: HEC-RAS solves soil infiltration losses internally using its built-in loss parameters (such as the Deficit and Constant or SCS Curve Number methods). If the Python script pre-subtracted soil absorption and only passed the net runoff to HEC-RAS, the hydraulic model would double-count infiltration losses, leading to under-simulated water levels and dangerous under-warning of flood risk.
+A critical aspect of the system's coupling logic is that **the SWI serves as a gatekeeper trigger, and the runoff coefficient scales the boundaries before HEC-RAS execution.**
+* **Decoupled Data Flow**: When Python detects that the saturation threshold is breached ($SWI > 100 \text{ mm}$), it triggers the hydraulic model, passing the **active runoff (effective rainfall)** dataset into HEC-RAS.
+* **HEC-RAS Zero Infiltration**: Because soil losses and saturation kinetics are pre-calculated in Python using the SWI Leaky Bucket model, HEC-RAS is run with internal soil loss models disabled (set to zero). If the Python script did not subtract soil absorption and passed raw rainfall instead, HEC-RAS would either require complex cell-level soil properties or double-count losses, leading to under-simulated water levels and dangerous under-warning of flood risk.
 
 ```mermaid
 graph TD
     Rain["Gross Rainfall Forecast"] --> SWI{"SWI exceeds 100mm?"}
-    SWI -- Yes --> HECRAS["HEC-RAS 2D Engine"]
-    Rain --> HECRAS
-    HECRAS --> Infiltration["Compute Infiltration Losses"]
+    SWI -- Yes --> Scale["Scale Rainfall by C_runoff"]
+    Scale -->|R_active(t)| HECRAS["HEC-RAS 2D Engine (Infiltration = 0)"]
     HECRAS --> WSE["Generate Physical WSE Output"]
 ```
 
-*Figure 7: Decoupled data flow diagram. The SWI serves only as a binary trigger — the full gross rainfall is passed to HEC-RAS, which handles infiltration internally to avoid double-counting losses.*
-
-*Table 8: Division of labor between the SWI hydrological screening layer and HEC-RAS 2D hydraulic layer.*
-
-| Dimension | Soil Water Index (SWI) Layer | HEC-RAS 2D Hydraulics Layer |
-| :--- | :--- | :--- |
-| **Role** | Computational Switch (Gatekeeper) | Hydraulic Simulator (Router) |
-| **Input Data** | Cumulative 1D Rainfall Time Series | Complete Gross Rainfall Time Series |
-| **Physics Mode** | Leaky Bucket Soil Saturation | 2D Shallow Water Equations |
-| **Trigger Logic** | Active only when SWI exceeds 100 mm | Runs to 100% completion once activated |
-| **Infiltration** | Screens for antecedent saturation | Solves infiltration loss dynamically per grid cell |
-| **Safety Purpose** | Prevents redundant HEC-RAS runs (95% savings) | Simulates real-world WSE & scour risk at assets |
+*Figure 7: Decoupled hydrology-to-hydraulics data flow. Python computes soil moisture and scales the rainfall, passing only the active excess runoff to HEC-RAS (which has internal soil losses set to zero to prevent double-counting).*
 
 #### 4.4.2 Recomputation Bridge & Pre-Computed HDF5 Plans
 While a live HEC-RAS 2D simulation takes approximately 2.5 minutes to run, the system uses a hybrid approach featuring both an active **HEC-RAS COM Bridge (`hecras_bridge.py`)** for live recomputation and a fast **HDF5 Reader (`hecras_hdf5_reader.py`)** for reading results:
@@ -342,7 +358,7 @@ While a live HEC-RAS 2D simulation takes approximately 2.5 minutes to run, the s
      * **Historical Showcase (Plan P02)**: Historical September 2025 Cévenol storm event. It contains **127 timesteps** at **10-minute intervals**.
      * **Active Simulation**: Displays the results of the latest recomputed forecast cycle (216 timesteps, spanning 7 days history + 48h forecast).
 
-*Table 8: HEC-RAS HDF5 result structure and data dimensions.*
+*Table 9: HEC-RAS HDF5 result structure and data dimensions.*
 
 | HDF5 Dataset Path | Shape | Description |
 | :--- | :--- | :--- |
@@ -400,7 +416,7 @@ graph TD
   * **🟠 ORANGE (`orange_z_m`) = $\text{Invert} + 0.5 \times \text{Height}$** (50% capacity exceeded)
   * **🟡 YELLOW (`yellow_z_m`) = $\text{Invert}$** (Water enters the flow-line)
 
-*Table 9: RAMS alert hierarchy — threshold mapping and operational response.*
+*Table 10: RAMS alert hierarchy — threshold mapping and operational response.*
 
 | Alert Level | CAP Color | Trigger Condition | Engineering Meaning | Operational Response |
 | :---: | :---: | :--- | :--- | :--- |
@@ -452,7 +468,7 @@ A comprehensive sensitivity analysis was performed by varying the half-life para
 
 ![Figure 12: SWI sensitivity analysis across 9 half-life values (T = 3–60 days). Panel (a): SWI accumulation curves for all T values — all exceed the 100 mm trigger, confirming robustness. Panel (b): Peak SWI vs. T with T=10d highlighted in red. Panel (c): Storm hyetograph input. Panel (d): Numerical summary table with T=10d row highlighted.](../figures/Fig06_SWI_Sensitivity_T.png)
 
-*Table 10: SWI sensitivity results. $T=10$ days was selected as it balances soil drainage response with historical storm behavior.*
+*Table 11: SWI sensitivity results. $T=10$ days was selected as it balances soil drainage response with historical storm behavior.*
 
 | $T$ (days) | Peak SWI (mm) | Hours > 100mm | Peak $C_{runoff}$ | Model Behavior |
 | :---: | :---: | :---: | :---: | :--- |
@@ -471,7 +487,7 @@ A comprehensive sensitivity analysis was performed by varying the half-life para
 
 Beyond the half-life, a broader sensitivity analysis was conducted across three key model parameters:
 
-*Table 11: Multi-parameter sensitivity analysis across ±20% perturbations.*
+*Table 12: Multi-parameter sensitivity analysis across ±20% perturbations.*
 
 | Parameter | Variation | Target Metric | Metric Value |
 | :--- | :--- | :--- | :---: |
@@ -493,7 +509,7 @@ The original fragility curve ($\sigma=0.40$) was compared against the field-cali
 
 ![Figure 13: Fragility curve comparison — three calibration modes. Panel (a): Log-normal CDF curves with RAMS alert zones (GREEN/YELLOW/RED). The Combined mode (blue, σ=0.15) is significantly more sensitive at shallow depths than the original uncalibrated curve (red dashed). Panel (b): Bar chart comparing the trigger depths at P=20% (YELLOW) and P=50% (RED) for each mode.](../figures/Fig07_Fragility_Comparison.png)
 
-*Table 12: Probability of failure comparison across three fragility curve modes at critical overtopping depths.*
+*Table 13: Probability of failure comparison across three fragility curve modes at critical overtopping depths.*
 
 | Depth (m) | $P_{\text{fail}}$ (Conservative, $\sigma=0.40$) | $P_{\text{fail}}$ (Combined, $\sigma=0.15$) | $P_{\text{fail}}$ (Ballast, $\sigma=0.035$) |
 | :---: | :---: | :---: | :---: |
@@ -569,7 +585,7 @@ Below are direct captures from the active digital twin interface illustrating th
 
 **Interpretation of Figure 16 and Figure 17:**
 
-*Table 13: Detailed alert status for critical sections at T+44h during the September 2025 Cévenol storm replay.*
+*Table 14: Detailed alert status for critical sections at T+44h during the September 2025 Cévenol storm replay.*
 
 | Section | Overall Status | Track WSE (m) | Red Z (m) | Track Margin (m) | Drainage Alerts | Operational Action |
 | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
@@ -605,7 +621,7 @@ The financial savings of the Digital Twin are modeled as avoided losses across t
 3. **Preventive Drainage Maintenance (Yellow Alerts)**: Clearing culvert obstructions *before* they overflow avoids emergency ballast reconstruction, saving **€50,000/year**.
 4. **Compute Resource Optimization**: The SWI screening layer filters out 85% of dry weather periods, saving **€10,000/year** in cloud CPU hosting.
 
-*Table 14: Summary of pilot digital twin 5-year financial performance.*
+*Table 15: Summary of pilot digital twin 5-year financial performance.*
 
 | Metric | Year 1 | Year 2 | Year 3 | Year 4 | Year 5 | 5-Year Cumulative |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -647,9 +663,9 @@ gantt
     RAMS Predictive Feedback   :         des4, 2027-04-01, 2027-09-30
 ```
 
-*Figure 18: Digital Twin maturity roadmap Gantt chart showing the 4-phase evolution from Digital Shadow to full Digital Twin with predictive feedback.*
+*Figure 19: Digital Twin maturity roadmap Gantt chart showing the 4-phase evolution from Digital Shadow to full Digital Twin with predictive feedback.*
 
-*Table 14: Digital Twin maturity roadmap — key enhancements per phase.*
+*Table 16: Digital Twin maturity roadmap — key enhancements per phase.*
 
 | Phase | Maturity Level | Key Enhancement | Timeline |
 | :--- | :--- | :--- | :---: |
@@ -675,9 +691,9 @@ graph TD
     C --> C3["Asset Fragility Curves"]
 ```
 
-*Figure 19: Transferability checklist for deploying the Digital Twin to a new railway corridor.*
+*Figure 20: Transferability checklist for deploying the Digital Twin to a new railway corridor.*
 
-*Table 15: Transferability parameter checklist — required inputs and calibration steps for a new corridor.*
+*Table 17: Transferability parameter checklist — required inputs and calibration steps for a new corridor.*
 
 | Category | Required Input | Source | Calibration Method |
 | :--- | :--- | :--- | :--- |

@@ -181,12 +181,34 @@ If rainfall is 200 mm and the soil absorbs 20 mm, do we subtract 20 mm in Python
 
 ### Response
 
-#### 1. Infiltration Logic: Send Gross, Not Net Precipitation
-No, we do **not** subtract infiltration losses in Python. The full **200 mm** is written into the HEC-RAS Unsteady Flow File:
-* **The Division of Labor**:
-  * **Python SWI** acts purely as a **binary gatekeeper (switch)**. It decides *whether* to run HEC-RAS based on initial wetness, but it does *not* filter or scale the rainfall forecast.
-  * **HEC-RAS** is responsible for computing soil losses internally. It uses its built-in infiltration equations (e.g., Deficit and Constant, SCS Curve Number) to calculate how much of that 200 mm is absorbed and how much becomes runoff.
-* **The Risk of Double-Counting**: If we subtracted 20 mm in Python first, HEC-RAS would treat the 180 mm input as the gross rainfall and would apply its own soil infiltration losses to it again, leading to an artificially lower flood peak (under-warning risk).
+#### 1. Infiltration Logic: Decoupled Hydrology-to-Hydraulics Handoff
+Yes! In the active Digital Twin implementation, we calculate the soil absorption in Python and push the **active surface runoff** (effective rainfall) to the HEC-RAS boundary files, rather than the raw rainfall.
+
+* **Decoupled Architecture**:
+  * **Soil Saturation Calculation (Python)**: Python calculates the Soil Water Index (SWI) recursively. The **Sigmoid Runoff Coefficient ($C_{\text{runoff}}$)** maps the wetness to a runoff fraction ($10\%$ to $90\%$).
+  * **Rainfall Scaling (Python)**: We scale the raw hourly rainfall $R(t)$ to calculate the net active runoff:
+    $$R_{\text{active}}(t) = R(t) \times C_{\text{runoff}}(SWI)$$
+  * **HEC-RAS 2D Input**: The Python COM bridge (`hecras_bridge.py`) writes this $R_{\text{active}}(t)$ time-series directly into the HEC-RAS Unsteady Flow File (`.u02`) as the boundary precipitation condition.
+  * **Zero Infiltration in HEC-RAS**: HEC-RAS has internal soil infiltration set to **zero**. It acts purely as a routing engine, solving the 2D shallow water equations on the LiDAR mesh without slow, cell-level soil equations. This prevents any double-counting of losses while maximizing model speed.
+
+```mermaid
+graph TD
+    Raw["Raw Rainfall: R(t) (mm/h)"] -->|Multiplied by| Scale["Rainfall Scaling"]
+    SWI["Soil Moisture: SWI(t) (mm)"] -->|Sigmoid Function| Runoff["Runoff Coeff: C_runoff (10%-90%)"]
+    Runoff --> Scale
+    Scale -->|Calculates| Active["Active Runoff: R_active(t) (mm/h)"]
+    Active -->|COM Boundary Injection| HECRAS["HEC-RAS 2D Engine (Infiltration = 0)"]
+    HECRAS -->|Hydraulic Routing| WSE["Water Surface Elevation (WSE)"]
+```
+
+*Table 1: Comparative example of raw rainfall vs. actual values pushed to HEC-RAS.*
+
+| Simulation Hour | Raw Rain $R(t)$ (mm/h) | Antecedent SWI (mm) | Runoff Coeff $C_{\text{runoff}}$ | Pushed to HEC-RAS $R_{\text{active}}(t)$ (mm/h) | Soil Infiltration (Absorbed) | Soil State Description |
+| :---: | :---: | :---: | :---: | :---: | :---: | :--- |
+| **Hour 1** | 10.0 | 20.0 | 0.101 | **1.01** | 8.99 | Dry soil (minimum baseline runoff) |
+| **Hour 6** | 25.0 | 120.0 | 0.246 | **6.15** | 18.85 | Damp soil (moderate absorption) |
+| **Hour 12** | 30.0 | 150.0 | 0.500 | **15.00** | 15.00 | Inflection point (50% saturation) |
+| **Hour 20** | 40.0 | 250.0 | 0.895 | **35.79** | 4.21 | Fully saturated (maximum runoff) |
 
 #### 2. How to Verify That the Weather Forecast Input is True
 Because the reliability of HEC-RAS results depends entirely on the accuracy of the rainfall forecast input, we use a three-tiered verification strategy:
@@ -685,47 +707,8 @@ The financial justification for the Digital Twin lies in mitigating the costs of
 $$\text{ROI}_{\text{5-Year}} = \frac{\text{€2,550k} - \text{€220k}}{\text{€220k}} \times 100 \approx \mathbf{1,059\%}$$
 * **Payback Period**: **3.5 months** from system deployment.
 
+#### 4. Reference Chart
 * **ROI Impact Chart**: [roi_analysis.png](../report/figures/roi_analysis.png)
-
----
-
-## 25. Hydrology Coupling & Infiltration Loss Division (Python vs. HEC-RAS)
-
-### Question
-Does the Digital Twin scale/modify the rainfall before pushing it to HEC-RAS, or does it push the raw rainfall and let HEC-RAS handle soil absorption internally?
-
-### Response
-
-The system implements a **Decoupled Data Flow** architecture where soil hydrology and 2D hydraulics are separated to prevent double-counting of water losses and optimize calculation performance:
-
-#### 1. Coupling Pipeline Diagram
-
-```mermaid
-graph TD
-    Rain["Gross Rainfall Forecast R(t)<br>(API or CSV)"] --> SWI{"SWI Layer: SWI(t) > 100mm?"}
-    SWI -- No --> Halt["Halt Pipeline<br>(Maintain GREEN Alert)"]
-    SWI -- Yes --> Trigger["Trigger HEC-RAS Bridge<br>(hecras_bridge.py)"]
-    Rain -->|Inject Raw Rainfall R(t)| Trigger
-    Trigger --> HECRAS["HEC-RAS 2D Engine<br>(Computes flow hydraulics)"]
-    HECRAS --> Infiltration["Solve Infiltration Losses<br>(Internal Deficit-Constant Model)"]
-    HECRAS --> WSE["Generate WSE Output<br>(Written to .p02.hdf)"]
-```
-
-#### 2. Division of Labor Table
-
-| Dimension | Soil Water Index (SWI) Layer | HEC-RAS 2D Hydraulics Layer |
-| :--- | :--- | :--- |
-| **Role** | Computational Switch (Gatekeeper) | Hydraulic Simulator (Router) |
-| **Input Data** | Cumulative 1D Rainfall Time Series | Complete Gross Rainfall Time Series |
-| **Physics Mode** | Leaky Bucket Soil Saturation | 2D Shallow Water Equations |
-| **Trigger Logic** | Active only when SWI exceeds 100 mm | Runs to 100% completion once activated |
-| **Infiltration** | Screens for antecedent saturation | Solves infiltration loss dynamically per grid cell |
-| **Safety Purpose** | Prevents redundant HEC-RAS runs (95% savings) | Simulates real-world WSE & scour risk at assets |
-
-#### 3. Core Architectural Rules
-* **No Double-Counting**: Python does **not** pre-subtract soil infiltration losses. If we pre-subtracted soil absorption and only passed the net runoff to HEC-RAS, HEC-RAS would apply its internal soil infiltration tables to that net runoff, double-counting the losses and dangerously underestimating flood heights.
-* **Separation of Concerns**: Python handles the temporal gatekeeping (SWI leaky bucket), while HEC-RAS handles the spatial overland routing and terrain-based infiltration losses.
-
 
 
 

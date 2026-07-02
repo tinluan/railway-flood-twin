@@ -1,10 +1,10 @@
 Parameter,Variation,Target Metric,Metric Value
-Half-Life (days),8 (-20%),Peak SWI (mm),0.4
-Half-Life (days),10 (+0%),Peak SWI (mm),0.3
-Half-Life (days),12 (+20%),Peak SWI (mm),0.2
+Half-Life (days),8 (-20%),Peak SWI (mm),99.5
+Half-Life (days),10 (+0%),Peak SWI (mm),99.6
+Half-Life (days),12 (+20%),Peak SWI (mm),99.6
 SWI Midpoint (mm),120 (-20%),Runoff Coeff @ SWI=100,0.315
 SWI Midpoint (mm),150 (+0%),Runoff Coeff @ SWI=100,0.161
 SWI Midpoint (mm),180 (+20%),Runoff Coeff @ SWI=100,0.114
-Fragility Median (m),0.24 (-20%),P_fail @ depth=0.30m,0.712
+Fragility Median (m),0.24 (-20%),P_fail @ depth=0.30m,0.932
 Fragility Median (m),0.30 (+0%),P_fail @ depth=0.30m,0.5
-Fragility Median (m),0.36 (+20%),P_fail @ depth=0.30m,0.324
+Fragility Median (m),0.36 (+20%),P_fail @ depth=0.30m,0.112
