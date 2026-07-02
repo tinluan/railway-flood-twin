@@ -85,9 +85,9 @@ Pedersen (2023) defines three maturity levels:
 
 The Soil Water Index quantifies antecedent soil moisture as a precursor to surface runoff. Siva Subramanian et al. (2025) implemented SWI-based thresholds for Japan's Te-LEWS landslide early warning system. The SWI Leaky Bucket model used in this work follows the recursive formulation:
 
-$$SWI(t) = R(t) + SWI(t-1) \cdot C, \quad C = 0.5^{1/(T \times 24)}$$
+$$SWI(t) = R(t) + SWI(t-1) \cdot C, \quad C = 0.5^{1/T}$$
 
-Where $R(t)$ is rainfall intensity (mm/h), $C$ is the hourly decay constant, and $T$ is the half-life parameter in **days**.
+Where $R(t)$ is daily rainfall intensity (mm/day), $C$ is the daily decay constant, the time step $t$ is in **days**, and $T$ is the half-life parameter in **days**.
 
 ### 2.3 HEC-RAS 2D for Railway Flood Modeling
 
